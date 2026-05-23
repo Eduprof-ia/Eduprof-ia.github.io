@@ -16,7 +16,7 @@
 const API_CONFIG = {
   // ─── Clé API Grok ──────────────────────────────────────────────
   // Remplacez "YOUR_GROK_API_KEY_HERE" par votre clé réelle
-  GROK_API_KEY: "YOUR_GROK_API_KEY_HERE",
+  GROK_API_KEY: "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",
 
   // ─── Modèle Grok ───────────────────────────────────────────────
   // Options disponibles : "grok-3", "grok-3-mini", "grok-2"
