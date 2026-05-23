@@ -1,43 +1,12 @@
-/**
- * ╔══════════════════════════════════════════════════════════════╗
- * ║              EDUFLOW — Configuration API Grok (xAI)          ║
- * ║   ✏️  Modifiez UNIQUEMENT ce fichier pour changer l'API Key   ║
- * ╚══════════════════════════════════════════════════════════════╝
- *
- * 📌 INSTRUCTIONS :
- *   1. Remplacez la valeur de GROK_API_KEY par votre vraie clé API
- *   2. Obtenez votre clé sur : https://console.x.ai/
- *   3. ⚠️  Ne partagez JAMAIS ce fichier publiquement avec votre clé réelle
- *   4. Ajoutez api_config.js dans votre .gitignore si vous pushez sur GitHub
- *
- * 🔗 Endpoint Grok (xAI) : https://api.x.ai/v1/chat/completions
- */
+// ─── EduFlow — Clé API Groq ───────────────────────────────────────
+// Remplacez la valeur ci-dessous par votre clé API Groq
+// Obtenez-la sur : https://console.groq.com/keys
 
 const API_CONFIG = {
-  // ─── Clé API Grok ──────────────────────────────────────────────
-  // Remplacez "YOUR_GROK_API_KEY_HERE" par votre clé réelle
-  GROK_API_KEY: "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",
-
-  // ─── Modèle Grok ───────────────────────────────────────────────
-  // Options disponibles : "grok-3", "grok-3-mini", "grok-2"
-  GROK_MODEL: "grok-3",
-
-  // ─── Endpoint API ──────────────────────────────────────────────
-  GROK_ENDPOINT: "https://api.x.ai/v1/chat/completions",
-
-  // ─── Paramètres de génération ──────────────────────────────────
-  MAX_TOKENS: 4096,
-  TEMPERATURE: 0.7,
-
-  // ─── Langue par défaut ─────────────────────────────────────────
-  DEFAULT_LANGUAGE: "fr",
-
-  // ─── Fonctionnalité de partage (liens élèves) ──────────────────
-  // URL de base de votre déploiement GitHub Pages ou hébergeur
-  // Ex: "https://mon-ecole.github.io/eduflow"
-  // Laissez vide pour utiliser l'URL courante automatiquement
-  BASE_SHARE_URL: "",
+  GROQ_API_KEY: "YOUR_GROQ_API_KEY_HERE",   // ← mettez votre clé ici
+  GROQ_MODEL:   "llama-3.3-70b-versatile",   // ou "mixtral-8x7b-32768", "gemma2-9b-it"
+  GROQ_ENDPOINT:"https://api.groq.com/openai/v1/chat/completions",
+  MAX_TOKENS:   4096,
+  TEMPERATURE:  0.7,
+  BASE_SHARE_URL: "",                        // ex: "https://monsite.github.io/eduflow"
 };
-
-// Export pour usage dans app.js
-if (typeof module !== "undefined") module.exports = API_CONFIG;

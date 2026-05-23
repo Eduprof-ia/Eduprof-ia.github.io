@@ -55,8 +55,8 @@ function loadConfig() {
   }
   // Override depuis api_config.js si présent
   if (typeof API_CONFIG !== "undefined") {
-    if (!STATE.apiKey && API_CONFIG.GROK_API_KEY !== "YOUR_GROK_API_KEY_HERE") {
-      STATE.apiKey = API_CONFIG.GROK_API_KEY;
+    if (!STATE.apiKey && API_CONFIG.GROQ_API_KEY !== "YOUR_GROQ_API_KEY_HERE") {
+      STATE.apiKey = API_CONFIG.GROQ_API_KEY;
     }
   }
   updateApiStatus();
@@ -81,7 +81,7 @@ function updateApiStatus() {
   const dot = document.getElementById("apiStatus")?.querySelector(".status-dot");
   const txt = document.getElementById("apiStatus")?.querySelector(".status-text");
   if (!dot || !txt) return;
-  if (STATE.apiKey && STATE.apiKey !== "YOUR_GROK_API_KEY_HERE") {
+  if (STATE.apiKey && STATE.apiKey !== "YOUR_GROQ_API_KEY_HERE") {
     dot.className = "status-dot connected";
     txt.textContent = "API connectée";
   } else {
@@ -124,14 +124,14 @@ function initMobileMenu() {
 }
 
 // ── API CALL ─────────────────────────────────────────────────────
-async function callGrokAPI(systemPrompt, userPrompt) {
+async function callGroqAPI(systemPrompt, userPrompt) {
   const cfg = typeof API_CONFIG !== "undefined" ? API_CONFIG : {};
-  const endpoint = cfg.GROK_ENDPOINT || "https://api.x.ai/v1/chat/completions";
-  const model = cfg.GROK_MODEL || "grok-3";
+  const endpoint = cfg.GROQ_ENDPOINT || "https://api.groq.com/openai/v1/chat/completions";
+  const model = cfg.GROQ_MODEL || "llama-3.3-70b-versatile";
   const key = STATE.apiKey;
 
-  if (!key || key === "YOUR_GROK_API_KEY_HERE") {
-    throw new Error("Clé API Grok non configurée. Cliquez sur '⚙️ Configurer l'API'.");
+  if (!key || key === "YOUR_GROQ_API_KEY_HERE") {
+    throw new Error("Clé API Groq non configurée. Cliquez sur ⚙️ dans la sidebar.");
   }
 
   const res = await fetch(endpoint, {
@@ -153,7 +153,7 @@ async function callGrokAPI(systemPrompt, userPrompt) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Erreur API : ${res.status}`);
+    throw new Error(err.error?.message || `Erreur API Groq : ${res.status}`);
   }
   const data = await res.json();
   return data.choices?.[0]?.message?.content || "";
@@ -218,7 +218,7 @@ A) ... B) ... C) ... D) ... (si QCM)
 [corrigé détaillé de chaque question]`;
 
   try {
-    const result = await callGrokAPI(sys, prompt);
+    const result = await callGroqAPI(sys, prompt);
     renderMarkdownPreview("evalPreviewContent", result);
     STATE.currentContent = { type: "evaluation", data: result, subject, level };
     enablePreviewActions("eval");
@@ -264,7 +264,7 @@ ${objectives ? "Objectifs : " + objectives : ""}
 Inclure : titre accrocheur, consignes claires, exercices progressifs, critères de réussite, ressources suggérées.`;
 
   try {
-    const result = await callGrokAPI(sys, prompt);
+    const result = await callGroqAPI(sys, prompt);
     renderMarkdownPreview("devoirPreviewContent", result);
     STATE.currentContent = { type: "devoir", data: result, subject, level };
     enablePreviewActions("devoir");
@@ -331,7 +331,7 @@ ${keypoints ? "Points clés : " + keypoints : ""}
 Génère exactement ${slideNum} diapositives JSON.`;
 
   try {
-    const result = await callGrokAPI(sys, prompt);
+    const result = await callGroqAPI(sys, prompt);
     const clean = result.replace(/```json|```/g, "").trim();
     const slides = JSON.parse(clean);
     STATE.presSlides = slides;
@@ -737,7 +737,7 @@ function initChat() {
         <div class="chat-avatar">🤖</div>
         <div>
           <div class="chat-name">Assistant EduFlow</div>
-          <div class="chat-status" id="chatStatusLabel">Propulsé par Grok IA</div>
+          <div class="chat-status" id="chatStatusLabel">Propulsé par Groq IA</div>
         </div>
       </div>
       <div class="chat-header-actions">
@@ -837,16 +837,16 @@ Réponds de façon concise, bienveillante et pratique. Utilise des listes à puc
 
     const messages = [{ role: "system", content: sys }, ...CHAT_HISTORY];
     const cfg = typeof API_CONFIG !== "undefined" ? API_CONFIG : {};
-    const endpoint = cfg.GROK_ENDPOINT || "https://api.x.ai/v1/chat/completions";
+    const endpoint = cfg.GROQ_ENDPOINT || "https://api.groq.com/openai/v1/chat/completions";
     const key = STATE.apiKey;
 
-    if (!key || key === "YOUR_GROK_API_KEY_HERE") throw new Error("API non configurée");
+    if (!key || key === "YOUR_GROQ_API_KEY_HERE") throw new Error("API non configurée");
 
     const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
-        model: cfg.GROK_MODEL || "grok-3",
+        model: cfg.GROQ_MODEL || "llama-3.3-70b-versatile",
         max_tokens: 1000,
         temperature: 0.75,
         messages: messages.slice(0, 20),
@@ -862,7 +862,7 @@ Réponds de façon concise, bienveillante et pratique. Utilise des listes à puc
   } catch (e) {
     typing.remove();
     const errMsg = e.message.includes("configurée")
-      ? "⚙️ Configurez votre clé API Grok pour utiliser le chat IA."
+      ? "⚙️ Configurez votre clé API Groq pour utiliser le chat IA."
       : "❌ Erreur : " + e.message;
     appendChatMessage("assistant", errMsg);
   }
@@ -1048,14 +1048,7 @@ function chatCSS() {
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────────
-function initDashboard() {
-  document.getElementById("configApiBtn")?.addEventListener("click", () => {
-    const modal = document.getElementById("apiModal");
-    document.getElementById("apiKeyInput").value = STATE.apiKey;
-    document.getElementById("teacherNameInput").value = STATE.teacherName;
-    modal?.classList.add("open");
-  });
-}
+function initDashboard() {}
 
 function updateStats() {
   const counts = { evaluation: 0, devoir: 0, presentation: 0 };
