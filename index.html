@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>EduFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;600;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+
+    window.__firebaseReady = false;
+    window.__fbApp = null; window.__db = null; window.__auth = null; window.__storage = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      try {
+        const cfg = window.EDUFLOW_CONFIG?.FIREBASE;
+        if (!cfg || cfg.apiKey === "YOUR_FIREBASE_API_KEY") {
+          window.__firebaseReady = "mock";
+          window.dispatchEvent(new Event("firebase-ready"));
+          return;
+        }
+        window.__fbApp   = initializeApp(cfg);
+        window.__db      = getFirestore(window.__fbApp);
+        window.__auth    = getAuth(window.__fbApp);
+        window.__storage = getStorage(window.__fbApp);
+        window.__fbFns   = { collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
+                             query, where, orderBy, onSnapshot, serverTimestamp,
+                             createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+                             ref, uploadBytes, getDownloadURL };
+        window.__firebaseReady = true;
+        window.dispatchEvent(new Event("firebase-ready"));
+      } catch(e) {
+        console.warn("Firebase init:", e.message);
+        window.__firebaseReady = "mock";
+        window.dispatchEvent(new Event("firebase-ready"));
+      }
+    });
+  </script>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<!-- ══════════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════ -->
+<div id="authScreen" class="screen active">
+  <div class="auth-bg">
+    <div class="auth-blob b1"></div>
+    <div class="auth-blob b2"></div>
+    <div class="auth-blob b3"></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-mark"><span>E</span></div>
+      <div>
+        <div class="auth-title">EduFlow</div>
+        <div class="auth-tagline">Plateforme pédagogique intelligente</div>
+      </div>
+    </div>
+
+    <!-- Role picker -->
+    <div class="role-picker" id="rolePicker">
+      <button class="role-btn active" data-role="teacher">
+        <span class="role-icon">🎓</span>
+        <span class="role-label">Je suis Enseignant·e</span>
+      </button>
+      <button class="role-btn" data-role="student">
+        <span class="role-icon">🎒</span>
+        <span class="role-label">Je suis Élève</span>
+      </button>
+    </div>
+
+    <!-- Auth tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Connexion</button>
+      <button class="auth-tab" data-tab="register">Créer un compte</button>
+    </div>
+
+    <!-- Login form -->
+    <div class="auth-form active" id="loginForm">
+      <div class="field-group">
+        <label>Identifiant</label>
+        <input type="text" id="loginEmail" placeholder="Ex: mdupont" class="field" autocomplete="username"/>
+      </div>
+      <div class="field-group">
+        <label>Mot de passe</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" class="field"/>
+      </div>
+      <button class="btn-primary w-full" id="loginBtn">Se connecter</button>
+    </div>
+
+    <!-- Register form -->
+    <div class="auth-form" id="registerForm">
+      <div class="field-group">
+        <label>Prénom & Nom</label>
+        <input type="text" id="regName" placeholder="Marie Dupont" class="field"/>
+      </div>
+      <div class="field-group">
+        <label>Identifiant <span class="field-hint">(lettres, chiffres, point — pas d'espace)</span></label>
+        <input type="text" id="regEmail" placeholder="Ex: marie.dupont" class="field" autocomplete="username"/>
+      </div>
+      <div class="field-group">
+        <label>Mot de passe</label>
+        <input type="password" id="regPassword" placeholder="Min. 6 caractères" class="field"/>
+      </div>
+      <!-- Student only -->
+      <div class="field-group student-field" id="classCodeField" style="display:none">
+        <label>Code de classe <span class="field-hint">(donné par votre professeur)</span></label>
+        <input type="text" id="regClassCode" placeholder="EX: ABC-123" class="field code-field"/>
+      </div>
+      <button class="btn-primary w-full" id="registerBtn">Créer mon compte</button>
+    </div>
+
+    <div class="auth-error" id="authError"></div>
+    <div class="firebase-notice" id="firebaseNotice" style="display:none">
+      ⚠️ Firebase non configuré — mode démonstration local activé
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TEACHER APP
+══════════════════════════════════════════════ -->
+<div id="teacherApp" class="screen">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-logo">
+        <div class="logo-mark sm"><span>E</span></div>
+        <div>
+          <div class="logo-name">EduFlow</div>
+          <div class="logo-role">Enseignant·e</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-view="dashboard">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Tableau de bord
+        </button>
+        <button class="nav-btn" data-view="create">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Créer
+        </button>
+        <button class="nav-btn" data-view="classes">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Mes Classes
+        </button>
+        <button class="nav-btn" data-view="assignments">
+          <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 12 2 2 4-4"/></svg>
+          Travaux & Notes
+        </button>
+        <button class="nav-btn" data-view="library">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Bibliothèque
+        </button>
+      </nav>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-chip" id="teacherChip">
+        <div class="user-avatar" id="teacherAvatar">P</div>
+        <div class="user-info">
+          <div class="user-name" id="teacherNameDisplay">Prof</div>
+          <div class="user-sub">Enseignant·e</div>
+        </div>
+      </div>
+      <button class="nav-btn logout-btn" id="logoutBtn">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Déconnexion
+      </button>
+    </div>
+  </aside>
+
+  <main class="main" id="teacherMain">
+
+    <!-- DASHBOARD -->
+    <section class="view active" id="view-dashboard">
+      <div class="view-head">
+        <h1 class="view-title">Bonjour, <span id="teacherGreet">Professeur</span> 👋</h1>
+        <p class="view-sub">Que créez-vous aujourd'hui ?</p>
+      </div>
+      <div class="dash-stats" id="dashStats">
+        <div class="stat-card"><span class="stat-n" id="sClasses">0</span><span class="stat-l">Classes</span></div>
+        <div class="stat-card"><span class="stat-n" id="sStudents">0</span><span class="stat-l">Élèves</span></div>
+        <div class="stat-card"><span class="stat-n" id="sDocs">0</span><span class="stat-l">Documents</span></div>
+        <div class="stat-card"><span class="stat-n" id="sPending">0</span><span class="stat-l">À corriger</span></div>
+      </div>
+      <h2 class="section-title">Créer rapidement</h2>
+      <div class="quick-grid">
+        <button class="qcard" data-create="slides">
+          <div class="qcard-icon" style="background:#3d6b8a">🖥</div>
+          <div class="qcard-label">Diaporama</div>
+          <div class="qcard-desc">Slides animées + images</div>
+        </button>
+        <button class="qcard" data-create="exercise">
+          <div class="qcard-icon" style="background:#3d6b4f">✏️</div>
+          <div class="qcard-label">Exercice</div>
+          <div class="qcard-desc">Textes à trous, QCM</div>
+        </button>
+        <button class="qcard" data-create="crossword">
+          <div class="qcard-icon" style="background:#7a3d6b">🔤</div>
+          <div class="qcard-label">Mots croisés</div>
+          <div class="qcard-desc">Grille animée interactive</div>
+        </button>
+        <button class="qcard" data-create="evaluation">
+          <div class="qcard-icon" style="background:#6b4f3d">📝</div>
+          <div class="qcard-label">Évaluation</div>
+          <div class="qcard-desc">Noté, corrigé auto</div>
+        </button>
+        <button class="qcard" data-create="wordsearch">
+          <div class="qcard-icon" style="background:#3d4f6b">🔍</div>
+          <div class="qcard-label">Mots mêlés</div>
+          <div class="qcard-desc">Grille de recherche</div>
+        </button>
+        <button class="qcard" data-create="matching">
+          <div class="qcard-icon" style="background:#5a6b3d">🔗</div>
+          <div class="qcard-label">Relier</div>
+          <div class="qcard-desc">Associer colonnes</div>
+        </button>
+      </div>
+      <h2 class="section-title" style="margin-top:32px">Récents</h2>
+      <div id="recentDocs" class="doc-list"><p class="empty">Aucun document créé pour l'instant.</p></div>
+    </section>
+
+    <!-- CREATE -->
+    <section class="view" id="view-create">
+      <div class="view-head">
+        <h1 class="view-title" id="createTitle">Créer</h1>
+        <button class="btn-ghost" id="backToCreate">← Retour</button>
+      </div>
+      <div id="createContainer"></div>
+    </section>
+
+    <!-- CLASSES -->
+    <section class="view" id="view-classes">
+      <div class="view-head">
+        <h1 class="view-title">Mes Classes</h1>
+        <button class="btn-primary" id="newClassBtn">+ Nouvelle classe</button>
+      </div>
+      <div id="classesList" class="classes-grid"><p class="empty">Aucune classe créée.</p></div>
+    </section>
+
+    <!-- ASSIGNMENTS -->
+    <section class="view" id="view-assignments">
+      <div class="view-head">
+        <h1 class="view-title">Travaux & Notes</h1>
+        <div class="filter-row">
+          <select class="field sm" id="assignFilterClass">
+            <option value="">Toutes les classes</option>
+          </select>
+          <select class="field sm" id="assignFilterStatus">
+            <option value="">Tous les statuts</option>
+            <option value="pending">À corriger</option>
+            <option value="graded">Notés</option>
+          </select>
+        </div>
+      </div>
+      <div id="submissionsList"><p class="empty">Aucun rendu pour l'instant.</p></div>
+    </section>
+
+    <!-- LIBRARY -->
+    <section class="view" id="view-library">
+      <div class="view-head">
+        <h1 class="view-title">Bibliothèque</h1>
+        <div class="filter-row">
+          <button class="filter-chip active" data-type="all">Tout</button>
+          <button class="filter-chip" data-type="slides">Diaporamas</button>
+          <button class="filter-chip" data-type="exercise">Exercices</button>
+          <button class="filter-chip" data-type="crossword">Mots croisés</button>
+          <button class="filter-chip" data-type="evaluation">Évaluations</button>
+        </div>
+      </div>
+      <div id="libraryGrid" class="doc-grid"><p class="empty">Bibliothèque vide.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     STUDENT APP
+══════════════════════════════════════════════ -->
+<div id="studentApp" class="screen">
+  <header class="student-header">
+    <div class="student-logo"><div class="logo-mark sm"><span>E</span></div> EduFlow</div>
+    <div class="student-header-right">
+      <span class="student-class-badge" id="studentClassBadge">—</span>
+      <div class="user-chip sm">
+        <div class="user-avatar sm" id="studentAvatar">É</div>
+        <span id="studentNameDisplay">Élève</span>
+      </div>
+      <button class="btn-ghost sm" id="studentLogoutBtn">Déco</button>
+    </div>
+  </header>
+
+  <div class="student-layout">
+    <aside class="student-nav">
+      <button class="snav-btn active" data-sview="home">🏠 Accueil</button>
+      <button class="snav-btn" data-sview="assignments">📋 Mes devoirs</button>
+      <button class="snav-btn" data-sview="done">✅ Rendus</button>
+    </aside>
+
+    <main class="student-main">
+      <div class="sview active" id="sview-home">
+        <h2 class="view-title">Bonjour, <span id="studentGreet">Élève</span> ! 👋</h2>
+        <p class="view-sub" id="studentClassName">Classe : —</p>
+        <div id="studentDocs" class="sdoc-grid"><p class="empty">Aucun document partagé par votre professeur.</p></div>
+      </div>
+      <div class="sview" id="sview-assignments">
+        <h2 class="view-title">Mes devoirs à faire</h2>
+        <div id="studentAssignments"><p class="empty">Aucun devoir assigné.</p></div>
+      </div>
+      <div class="sview" id="sview-done">
+        <h2 class="view-title">Mes travaux rendus</h2>
+        <div id="studentDone"><p class="empty">Aucun travail rendu.</p></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════ -->
+
+<!-- New class modal -->
+<div class="modal-overlay" id="newClassModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Créer une classe</h3><button class="modal-x" data-close="newClassModal">✕</button></div>
+    <div class="modal-body">
+      <div class="field-group"><label>Nom de la classe</label><input type="text" id="className" placeholder="Ex: 3ème B" class="field"/></div>
+      <div class="field-group"><label>Niveau</label>
+        <select id="classLevel" class="field">
+          <option>CP</option><option>CE1</option><option>CE2</option><option>CM1</option><option>CM2</option>
+          <option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option>
+          <option>Seconde</option><option>Première</option><option>Terminale</option>
+        </select>
+      </div>
+      <div class="field-group"><label>Matière principale</label><input type="text" id="classSubject" placeholder="Ex: Mathématiques" class="field"/></div>
+      <button class="btn-primary w-full" id="createClassBtn">Créer la classe</button>
+    </div>
+  </div>
+</div>
+
+<!-- Class detail modal -->
+<div class="modal-overlay" id="classDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="classDetailTitle">Classe</h3>
+      <button class="modal-x" data-close="classDetailModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="class-code-box">
+        <span class="class-code-label">Code d'accès élèves :</span>
+        <span class="class-code" id="classDetailCode">—</span>
+        <button class="btn-ghost sm" id="copyClassCode">📋 Copier</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-ctab="students">Élèves (<span id="studentsCount">0</span>)</button>
+        <button class="tab" data-ctab="docs">Documents partagés</button>
+      </div>
+      <div class="ctab active" id="ctab-students">
+        <div id="studentsList"><p class="empty">Aucun élève inscrit.</p></div>
+      </div>
+      <div class="ctab" id="ctab-docs">
+        <button class="btn-primary" id="shareDocBtn">+ Partager un document</button>
+        <div id="sharedDocsList" style="margin-top:16px"><p class="empty">Aucun document partagé.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Share doc modal -->
+<div class="modal-overlay" id="shareDocModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Partager un document</h3><button class="modal-x" data-close="shareDocModal">✕</button></div>
+    <div class="modal-body">
+      <div class="field-group"><label>Choisir un document</label>
+        <select id="shareDocSelect" class="field"><option value="">— Sélectionner —</option></select>
+      </div>
+      <div class="field-group"><label>Date limite (optionnel)</label><input type="date" id="shareDueDate" class="field"/></div>
+      <div class="field-group">
+        <label class="check-label"><input type="checkbox" id="shareGraded"/> Document noté (les élèves doivent rendre)</label>
+      </div>
+      <button class="btn-primary w-full" id="confirmShareDoc">Partager</button>
+    </div>
+  </div>
+</div>
+
+<!-- Grade modal -->
+<div class="modal-overlay" id="gradeModal">
+  <div class="modal modal-lg">
+    <div class="modal-head"><h3>Corriger & noter</h3><button class="modal-x" data-close="gradeModal">✕</button></div>
+    <div class="modal-body">
+      <div id="gradeContent" style="max-height:400px;overflow-y:auto;margin-bottom:16px"></div>
+      <div class="grade-row">
+        <div class="field-group" style="flex:1"><label>Note /20</label><input type="number" id="gradeScore" min="0" max="20" step="0.5" class="field" placeholder="Ex: 15.5"/></div>
+        <div class="field-group" style="flex:2"><label>Commentaire</label><input type="text" id="gradeComment" class="field" placeholder="Bon travail, mais..."/></div>
+      </div>
+      <button class="btn-primary w-full" id="submitGradeBtn">Enregistrer la note</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student doc viewer -->
+<div class="modal-overlay" id="studentDocModal">
+  <div class="modal modal-xl">
+    <div class="modal-head">
+      <h3 id="studentDocTitle">Document</h3>
+      <button class="modal-x" data-close="studentDocModal">✕</button>
+    </div>
+    <div class="modal-body" id="studentDocContent"></div>
+    <div class="modal-foot" id="studentDocFoot" style="display:none">
+      <button class="btn-primary" id="submitWorkBtn">📤 Rendre mon travail</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loadingText">Chargement…</p>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- Chat FAB -->
+<button class="chat-fab" id="chatFab">💬</button>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-head">
+    <span>🤖 Assistant EduFlow</span>
+    <button class="modal-x" id="closeChat">✕</button>
+  </div>
+  <div class="chat-msgs" id="chatMsgs">
+    <div class="cmsg assistant"><div class="cbubble">Bonjour ! Comment puis-je vous aider ? Je peux vous aider à créer des activités, donner des conseils pédagogiques, etc.</div></div>
+  </div>
+  <div class="chat-foot">
+    <textarea class="chat-input" id="chatInput" placeholder="Posez votre question…" rows="1"></textarea>
+    <button class="chat-send" id="chatSend">➤</button>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="db.js"></script>
+<script src="auth.js"></script>
+<script src="creators.js"></script>
+<script src="activities.js"></script>
+<script src="student.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
