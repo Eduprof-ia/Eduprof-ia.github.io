@@ -1,464 +1,1422 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>EduFlow</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;600;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
-  <link rel="stylesheet" href="style.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-
-    window.__firebaseReady = false;
-    window.__fbApp = null; window.__db = null; window.__auth = null; window.__storage = null;
-
-    document.addEventListener("DOMContentLoaded", () => {
-      try {
-        const cfg = window.EDUFLOW_CONFIG?.FIREBASE;
-        if (!cfg || cfg.apiKey === "YOUR_FIREBASE_API_KEY") {
-          window.__firebaseReady = "mock";
-          window.dispatchEvent(new Event("firebase-ready"));
-          return;
-        }
-        window.__fbApp   = initializeApp(cfg);
-        window.__db      = getFirestore(window.__fbApp);
-        window.__auth    = getAuth(window.__fbApp);
-        window.__storage = getStorage(window.__fbApp);
-        window.__fbFns   = { collection, doc, setDoc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-                             query, where, orderBy, onSnapshot, serverTimestamp,
-                             createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-                             ref, uploadBytes, getDownloadURL };
-        window.__firebaseReady = true;
-        window.dispatchEvent(new Event("firebase-ready"));
-      } catch(e) {
-        console.warn("Firebase init:", e.message);
-        window.__firebaseReady = "mock";
-        window.dispatchEvent(new Event("firebase-ready"));
-      }
-    });
-  </script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>EduFlow — Plateforme Pédagogique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;600;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<!-- Firebase compat (fonctionne sans bundler) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<!-- jsPDF + html2canvas pour export PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{--bg:#0f0e0c;--sur:#1a1815;--sur2:#232018;--bor:#2e2922;--tx:#f0ead8;--tx2:#8b8270;--tx3:#4a4438;--acc:#e8a838;--acc2:#c47d1e;--sw:252px;--r:12px;--rs:8px;--sh:0 4px 28px rgba(0,0,0,.45);--f:"DM Sans",system-ui,sans-serif;--fd:"Fraunces",Georgia,serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--f);background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+svg{fill:none;stroke:currentColor;stroke-width:1.8}
+.grain{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+/* SCREENS */
+.screen{display:none}.screen.active{display:flex;min-height:100vh}
+#authScreen{align-items:center;justify-content:center;padding:20px;flex-direction:column;position:relative}
+/* AUTH BG */
+.auth-bg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.ab{position:absolute;border-radius:50%;filter:blur(80px);opacity:.1}
+.ab1{width:500px;height:500px;background:var(--acc);top:-200px;right:-100px}
+.ab2{width:400px;height:400px;background:#5a3d8a;bottom:-150px;left:-100px}
+.ab3{width:300px;height:300px;background:#3d6b4f;top:40%;left:30%}
+/* AUTH CARD */
+.acard{width:100%;max-width:440px;background:var(--sur);border:1px solid var(--bor);border-radius:20px;padding:36px;z-index:1;box-shadow:var(--sh)}
+.auth-logo{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.lmark{width:46px;height:46px;background:var(--acc);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lmark span{font-family:var(--fd);font-size:24px;font-weight:800;color:var(--bg)}
+.lmark.sm{width:36px;height:36px;border-radius:9px}.lmark.sm span{font-size:18px}
+.auth-ttl{font-family:var(--fd);font-size:22px;font-weight:700}.auth-tag{font-size:12px;color:var(--tx2);margin-top:2px}
+/* ROLE */
+.role-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.role-btn{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px;background:var(--sur2);border:2px solid var(--bor);border-radius:var(--r);cursor:pointer;font-family:var(--f);transition:all .2s}
+.role-btn.active{border-color:var(--acc);background:rgba(232,168,56,.08)}
+.role-icon{font-size:24px}.role-lbl{font-size:12px;font-weight:500;color:var(--tx2)}
+.role-btn.active .role-lbl{color:var(--acc)}
+/* TABS */
+.atabs{display:flex;border-bottom:1px solid var(--bor);margin-bottom:18px}
+.atab{flex:1;padding:10px;background:none;border:none;color:var(--tx2);cursor:pointer;font-family:var(--f);font-size:14px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+.atab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.aform{display:none;flex-direction:column;gap:14px}.aform.active{display:flex}
+.auth-err{display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#f87171;margin-top:6px}
+.fb-note{border-radius:var(--rs);padding:8px 14px;font-size:12px;margin-top:8px;text-align:center}
+/* FIELDS */
+.fg{display:flex;flex-direction:column;gap:6px}
+.fg label{font-size:13px;color:var(--tx2);font-weight:500}
+.fhint{font-size:11px;color:var(--tx3);font-weight:400}
+.fi{background:var(--sur2);border:1px solid var(--bor);border-radius:var(--rs);color:var(--tx);font-family:var(--f);font-size:14px;padding:10px 14px;outline:none;width:100%;transition:border-color .2s}
+.fi:focus{border-color:var(--acc)}.fi::placeholder{color:var(--tx3)}.fi.sm{font-size:13px;padding:7px 10px}
+textarea.fi{resize:vertical}select.fi{cursor:pointer;appearance:none}
+.code-fi{font-family:monospace;font-size:16px;letter-spacing:.12em;text-align:center;text-transform:uppercase}
+.code-hint{background:rgba(232,168,56,.06);border:1px solid rgba(232,168,56,.2);border-radius:10px;padding:14px 16px;text-align:center;margin-bottom:4px}
+.code-hint .ci{font-size:28px;margin-bottom:6px}
+.code-hint p{font-size:12px;color:var(--tx2);line-height:1.6}
+/* BUTTONS */
+.bp{background:var(--acc);color:var(--bg);border:none;border-radius:var(--rs);padding:11px 22px;font-family:var(--f);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.bp:hover{background:var(--acc2);transform:translateY(-1px)}.bp:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.bp.sm{padding:6px 14px;font-size:12px}.wf{width:100%;justify-content:center}
+.bg{background:transparent;color:var(--tx2);border:1px solid var(--bor);border-radius:var(--rs);padding:10px 20px;font-family:var(--f);font-size:13px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.bg:hover{border-color:var(--tx);color:var(--tx)}.bg.sm{padding:5px 12px;font-size:12px}.bg.wf{width:100%;justify-content:center}
+.bt{background:var(--sur2);color:var(--tx2);border:1px solid var(--bor);border-radius:var(--rs);padding:6px 12px;font-size:12px;cursor:pointer;font-family:var(--f);transition:all .2s}
+.bt:hover{border-color:var(--acc);color:var(--acc)}.bt:disabled{opacity:.35;cursor:not-allowed}.bt.sm{padding:4px 8px;font-size:11px}
+/* SIDEBAR */
+.sidebar{width:var(--sw);background:var(--sur);border-right:1px solid var(--bor);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s ease}
+.sb-top{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.sb-logo{display:flex;align-items:center;gap:12px;padding:22px 16px 16px;border-bottom:1px solid var(--bor)}
+.ln{font-family:var(--fd);font-size:17px;font-weight:700;letter-spacing:-.02em}
+.lr{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.06em}
+.nav{flex:1;padding:10px 8px;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
+.nb{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:none;background:transparent;color:var(--tx2);cursor:pointer;border-radius:var(--rs);font-family:var(--f);font-size:13.5px;font-weight:400;transition:all .2s;text-align:left}
+.nb svg{width:17px;height:17px;flex-shrink:0}
+.nb:hover{background:var(--sur2);color:var(--tx)}.nb.active{background:rgba(232,168,56,.1);color:var(--acc);font-weight:500;border:1px solid rgba(232,168,56,.18)}
+.sb-bot{padding:12px 8px;border-top:1px solid var(--bor);display:flex;flex-direction:column;gap:6px}
+.uchip{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--rs);background:var(--sur2)}
+.uchip.sm{padding:5px 8px;background:transparent;gap:8px}
+.uav{width:32px;height:32px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--bg);flex-shrink:0}
+.uav.sm{width:26px;height:26px;font-size:12px}
+.unm{font-size:13px;font-weight:500}.usb{font-size:11px;color:var(--tx3)}
+/* MAIN */
+.main{margin-left:var(--sw);flex:1;padding:34px 38px;min-height:100vh;max-width:calc(100vw - var(--sw))}
+.view{display:none;animation:fadeUp .35s ease}.view.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scaleIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes slideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* VIEW HEADER */
+.vh{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.vtitle{font-family:var(--fd);font-size:clamp(22px,3vw,34px);font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.vsub{font-size:13.5px;color:var(--tx2);margin-top:4px;font-weight:300}
+.stitle{font-family:var(--fd);font-size:18px;font-weight:600;margin-bottom:14px;letter-spacing:-.02em}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px}
+.scard{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:18px;text-align:center}
+.snum{display:block;font-family:var(--fd);font-size:34px;font-weight:800;color:var(--acc);line-height:1;margin-bottom:4px}
+.slbl{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+/* QUICK GRID */
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:28px}
+.qc{display:flex;flex-direction:column;align-items:flex-start;gap:10px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:20px;cursor:pointer;transition:all .25s;text-align:left;font-family:var(--f)}
+.qc:hover{border-color:var(--acc);transform:translateY(-3px);box-shadow:var(--sh)}
+.qci{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.qcl{font-size:14px;font-weight:600;color:var(--tx)}.qcd{font-size:12px;color:var(--tx2)}
+/* DOC LIST/GRID */
+.doc-list{display:flex;flex-direction:column;gap:8px}
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.dc{display:flex;align-items:center;gap:14px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rs);padding:14px 16px;cursor:pointer;transition:all .2s}
+.dc:hover{border-color:var(--acc)}.dci{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.dct{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dcm{font-size:12px;color:var(--tx2);margin-top:2px}.dca{display:flex;gap:6px;flex-shrink:0;margin-left:auto}
+/* CLASSES */
+.clgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.clcard{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:20px;cursor:pointer;transition:all .25s}
+.clcard:hover{border-color:var(--acc);transform:translateY(-2px);box-shadow:var(--sh)}
+.clname{font-size:16px;font-weight:600;margin-bottom:2px}.clmeta{font-size:12px;color:var(--tx2);margin-bottom:14px}
+.clstats{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--tx2)}
+.cpill{background:rgba(232,168,56,.12);color:var(--acc);border:1px solid rgba(232,168,56,.25);padding:3px 10px;border-radius:12px;font-size:13px;font-family:monospace;font-weight:700;letter-spacing:.08em}
+/* CODEBOX */
+.codebox{display:flex;align-items:center;gap:12px;background:rgba(232,168,56,.06);border:1px solid rgba(232,168,56,.2);border-radius:var(--rs);padding:14px 18px;margin-bottom:20px;flex-wrap:wrap}
+.cblbl{font-size:13px;color:var(--tx2)}.cbcode{font-family:monospace;font-size:26px;font-weight:800;color:var(--acc);letter-spacing:.14em}
+/* MODAL TABS */
+.tabs{display:flex;border-bottom:1px solid var(--bor);margin-bottom:16px}
+.tab{flex:1;padding:10px;background:none;border:none;color:var(--tx2);cursor:pointer;font-family:var(--f);font-size:13px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.ctab{display:none}.ctab.active{display:block}
+/* STUDENTS TABLE */
+.stbl{border:1px solid var(--bor);border-radius:var(--rs);overflow:hidden}
+.sth{display:grid;grid-template-columns:2fr 1fr 1fr;background:var(--sur2);padding:10px 16px;font-size:11px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.str{display:grid;grid-template-columns:2fr 1fr 1fr;padding:11px 16px;border-top:1px solid var(--bor);font-size:13px;align-items:center}
+.str:hover{background:var(--sur2)}
+/* SUBMISSIONS */
+.subtbl{border:1px solid var(--bor);border-radius:var(--r);overflow:hidden}
+.subh{display:grid;grid-template-columns:1.5fr 1.5fr 1fr 1fr 1fr;background:var(--sur2);padding:10px 16px;font-size:11px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.subr{display:grid;grid-template-columns:1.5fr 1.5fr 1fr 1fr 1fr;padding:12px 16px;border-top:1px solid var(--bor);font-size:13px;align-items:center;transition:background .15s}
+.subr:hover{background:var(--sur2)}.subr.graded{border-left:3px solid #4ade80}
+.ppill{background:rgba(232,168,56,.12);color:var(--acc);padding:2px 8px;border-radius:10px;font-size:11px}
+/* CREATOR */
+.clayout{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.fpanel{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:22px;display:flex;flex-direction:column;gap:16px;position:sticky;top:20px}
+.ppanel{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);min-height:480px;display:flex;flex-direction:column;overflow:hidden}
+.ptb{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bor);background:var(--sur2);flex-wrap:wrap;gap:8px}
+.plbl{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.pact{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pcont{flex:1;padding:20px;overflow-y:auto}.sstage{flex:1;padding:20px}
+.pph{display:flex;align-items:center;justify-content:center;min-height:280px;color:var(--tx3);font-size:14px;text-align:center;flex-direction:column;gap:10px}
+/* CHECKBOXES */
+.ckg{display:flex;flex-wrap:wrap;gap:8px}
+.ckl{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--sur2);border:1px solid var(--bor);border-radius:20px;cursor:pointer;font-size:13px;color:var(--tx2);transition:all .2s}
+.ckl:has(input:checked){border-color:var(--acc);color:var(--acc);background:rgba(232,168,56,.08)}.ckl input{display:none}
+.range{width:100%;accent-color:var(--acc);cursor:pointer}
+.trow{display:flex;flex-wrap:wrap;gap:6px}
+.tbtn{padding:6px 12px;border-radius:20px;border:1px solid var(--bor);background:var(--sur2);color:var(--tx2);cursor:pointer;font-size:12px;font-family:var(--f);transition:all .2s}
+.tbtn.active{border-color:var(--acc);color:var(--acc);background:rgba(232,168,56,.08)}
+.share-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--sur2);border-radius:var(--rs);margin-bottom:8px;font-size:13px;flex-wrap:wrap;gap:8px}
+.frow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.fchip{padding:6px 14px;border-radius:20px;border:1px solid var(--bor);background:transparent;color:var(--tx2);cursor:pointer;font-size:12px;font-family:var(--f);transition:all .2s}
+.fchip.active{border-color:var(--acc);color:var(--acc);background:rgba(232,168,56,.08)}
+/* STUDENT APP */
+#studentApp{flex-direction:column;background:#f8f5ee;color:#1a1208}
+.sh2{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:58px;background:#1a1208;color:#f0ead8;border-bottom:1px solid #2a2218;flex-shrink:0;flex-wrap:wrap;gap:10px}
+.slogo{display:flex;align-items:center;gap:10px;font-family:var(--fd);font-size:17px;font-weight:700;color:var(--acc)}
+.shr2{display:flex;align-items:center;gap:12px}
+.scbadge{background:rgba(232,168,56,.2);color:var(--acc);padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600}
+.slayout{display:flex;flex:1;min-height:0}
+.snav{width:200px;background:#1a1208;display:flex;flex-direction:column;gap:4px;padding:16px 10px;border-right:1px solid #2a2218}
+.snb{background:transparent;border:none;color:#8b8270;padding:10px 14px;border-radius:8px;cursor:pointer;font-family:var(--f);font-size:13px;text-align:left;transition:all .2s;width:100%}
+.snb:hover{background:rgba(255,255,255,.05);color:#f0ead8}.snb.active{background:rgba(232,168,56,.15);color:var(--acc);font-weight:500}
+.smain{flex:1;padding:26px 30px;overflow-y:auto}
+.sv{display:none;animation:fadeUp .3s ease}.sv.active{display:block}
+.sdgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:20px}
+.sdcard{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e0d8c8;border-radius:12px;padding:16px 18px;cursor:pointer;transition:all .25s;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.sdcard:hover{border-color:var(--acc);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.sdti{font-size:14px;font-weight:600;color:#1a1208;margin-bottom:3px}.sdme{font-size:12px;color:#8b8270}
+.sdbg{padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;flex-shrink:0}
+.sdbg.graded{background:rgba(232,168,56,.15);color:#c47d1e}.sdbg.view{background:rgba(74,222,128,.12);color:#16a34a}
+.acard{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e0d8c8;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.ati{font-size:14px;font-weight:600;color:#1a1208}.ame{font-size:12px;color:#8b8270}
+.done-card{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e0d8c8;border-radius:10px;padding:14px 18px;margin-bottom:10px;gap:16px}
+.gbadge{background:var(--acc);color:var(--bg);padding:6px 14px;border-radius:20px;font-size:16px;font-weight:800;font-family:var(--fd)}
+.gcomm{font-size:12px;color:#8b8270;font-style:italic;margin-top:4px;text-align:right}
+.pbadge{background:rgba(232,168,56,.1);color:#c47d1e;padding:5px 12px;border-radius:12px;font-size:12px;font-weight:500}
+.bdone{background:rgba(74,222,128,.15);color:#16a34a;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600}
+/* MODALS */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.mo.open{display:flex;animation:fadeIn .2s ease}
+.modal{background:var(--sur);border:1px solid var(--bor);border-radius:18px;width:100%;max-width:480px;animation:scaleIn .25s ease;max-height:90vh;overflow-y:auto}
+.modal.lg{max-width:680px}.modal.xl{max-width:880px}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--bor)}
+.mh h3{font-family:var(--fd);font-size:17px;font-weight:600}
+.mx{background:none;border:none;color:var(--tx2);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;transition:all .15s}
+.mx:hover{background:var(--sur2);color:var(--tx)}
+.mb{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.mf{padding:14px 22px;border-top:1px solid var(--bor);display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.ckl2{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--tx2)}
+.ckl2 input{accent-color:var(--acc)}
+.grade-row{display:flex;gap:12px}
+/* LOADING */
+.ldo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:800;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+.ldo.open{display:flex}
+.ldb{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:36px 44px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+.spinner{width:42px;height:42px;border:3px solid var(--bor);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite}
+/* TOAST */
+.twrap{position:fixed;bottom:24px;right:24px;z-index:900;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--sur2);border:1px solid var(--bor);border-radius:var(--rs);padding:11px 16px;font-size:13px;max-width:300px;box-shadow:var(--sh);animation:toastIn .3s ease}
+.toast.s{border-color:#4ade80}.toast.e{border-color:#f87171}.toast.i{border-color:var(--acc)}
+@keyframes toastIn{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+/* CHAT */
+.cfab{position:fixed;bottom:26px;right:26px;width:52px;height:52px;background:var(--acc);color:var(--bg);border:none;border-radius:50%;font-size:22px;cursor:pointer;z-index:400;box-shadow:0 4px 20px rgba(232,168,56,.45);transition:transform .2s}
+.cfab:hover{transform:scale(1.1)}
+.cpanel{position:fixed;bottom:90px;right:26px;width:360px;max-height:520px;background:var(--sur);border:1px solid var(--bor);border-radius:18px;display:flex;flex-direction:column;z-index:399;overflow:hidden;box-shadow:var(--sh);transform:scale(.92) translateY(12px);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(.4,0,.2,1);transform-origin:bottom right}
+.cpanel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+.chd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--bor);background:var(--sur2);font-size:13px;font-weight:600}
+.cmsgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+.cmsg{display:flex;flex-direction:column}.cmsg.u{align-items:flex-end}.cmsg.a{align-items:flex-start}
+.cbub{max-width:88%;padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.6}
+.cmsg.u .cbub{background:var(--acc);color:var(--bg);border-bottom-right-radius:4px}
+.cmsg.a .cbub{background:var(--sur2);color:var(--tx);border:1px solid var(--bor);border-bottom-left-radius:4px}
+.typing{display:flex;gap:4px;align-items:center;padding:2px 0}
+.typing span{width:7px;height:7px;border-radius:50%;background:var(--tx3);animation:tb 1.1s ease infinite}
+.typing span:nth-child(2){animation-delay:.18s}.typing span:nth-child(3){animation-delay:.36s}
+@keyframes tb{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.cfoot{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;border-top:1px solid var(--bor);background:var(--sur2)}
+.cinp{flex:1;background:var(--sur);border:1px solid var(--bor);border-radius:10px;color:var(--tx);font-family:var(--f);font-size:13px;padding:8px 12px;outline:none;resize:none;max-height:110px;line-height:1.5;transition:border-color .2s}
+.cinp:focus{border-color:var(--acc)}.cinp::placeholder{color:var(--tx3)}
+.csend{width:36px;height:36px;flex-shrink:0;background:var(--acc);border:none;border-radius:9px;color:var(--bg);cursor:pointer;font-size:14px;transition:all .2s}
+.csend:hover{background:var(--acc2)}
+.empty{color:var(--tx3);font-size:13.5px;text-align:center;padding:36px 20px;line-height:1.8}
+/* RESPONSIVE */
+@media(max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.clayout{grid-template-columns:1fr}.fpanel{position:static}.subh,.subr{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0;padding:16px;max-width:100vw}.snav{width:160px}.smain{padding:14px}.cpanel{right:10px;left:10px;width:auto}.cfab{right:14px;bottom:14px}.stats{grid-template-columns:1fr 1fr}}
+</style>
 </head>
 <body>
-
 <div class="grain"></div>
 
-<!-- ══════════════════════════════════════════════
-     AUTH SCREEN
-══════════════════════════════════════════════ -->
+<!-- ═══════════════ AUTH ═══════════════ -->
 <div id="authScreen" class="screen active">
-  <div class="auth-bg">
-    <div class="auth-blob b1"></div>
-    <div class="auth-blob b2"></div>
-    <div class="auth-blob b3"></div>
-  </div>
-  <div class="auth-card">
+  <div class="auth-bg"><div class="ab ab1"></div><div class="ab ab2"></div><div class="ab ab3"></div></div>
+  <div class="acard">
     <div class="auth-logo">
-      <div class="logo-mark"><span>E</span></div>
-      <div>
-        <div class="auth-title">EduFlow</div>
-        <div class="auth-tagline">Plateforme pédagogique intelligente</div>
-      </div>
+      <div class="lmark"><span>E</span></div>
+      <div><div class="auth-ttl">EduFlow</div><div class="auth-tag">Plateforme pédagogique intelligente</div></div>
     </div>
-
-    <!-- Role picker -->
-    <div class="role-picker" id="rolePicker">
-      <button class="role-btn active" data-role="teacher">
-        <span class="role-icon">🎓</span>
-        <span class="role-label">Je suis Enseignant·e</span>
-      </button>
-      <button class="role-btn" data-role="student">
-        <span class="role-icon">🎒</span>
-        <span class="role-label">Je suis Élève</span>
-      </button>
+    <div class="role-pick">
+      <button class="role-btn active" data-role="teacher"><span class="role-icon">🎓</span><span class="role-lbl">Enseignant·e</span></button>
+      <button class="role-btn" data-role="student"><span class="role-icon">🎒</span><span class="role-lbl">Élève</span></button>
     </div>
-
-    <!-- Auth tabs -->
-    <div class="auth-tabs">
-      <button class="auth-tab active" data-tab="login">Connexion</button>
-      <button class="auth-tab" data-tab="register">Créer un compte</button>
+    <div class="atabs">
+      <button class="atab active" data-tab="login">Connexion</button>
+      <button class="atab" data-tab="register">Créer un compte</button>
     </div>
-
-    <!-- Login form -->
-    <div class="auth-form active" id="loginForm">
-      <div class="field-group">
+    <!-- LOGIN -->
+    <div class="aform active" id="loginForm">
+      <div class="fg" id="loginUserRow">
         <label>Identifiant</label>
-        <input type="text" id="loginEmail" placeholder="Ex: mdupont" class="field" autocomplete="username"/>
+        <input type="text" id="loginUser" placeholder="Votre identifiant" class="fi" autocomplete="username"/>
       </div>
-      <div class="field-group">
+      <div class="fg" id="loginPassRow">
         <label>Mot de passe</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" class="field"/>
+        <input type="password" id="loginPass" placeholder="••••••••" class="fi"/>
       </div>
-      <button class="btn-primary w-full" id="loginBtn">Se connecter</button>
+      <div id="loginCodeRow" style="display:none">
+        <div class="code-hint"><div class="ci">🔑</div><p>Les élèves se connectent avec leur <strong>code de classe</strong> donné par le professeur. Pas besoin de compte !</p></div>
+        <div class="fg" style="margin-top:10px">
+          <label>Code de classe</label>
+          <input type="text" id="loginCode" placeholder="ABC-XYZ" class="fi code-fi"/>
+        </div>
+      </div>
+      <button class="bp wf" id="loginBtn">Se connecter</button>
     </div>
-
-    <!-- Register form -->
-    <div class="auth-form" id="registerForm">
-      <div class="field-group">
-        <label>Prénom & Nom</label>
-        <input type="text" id="regName" placeholder="Marie Dupont" class="field"/>
+    <!-- REGISTER -->
+    <div class="aform" id="registerForm">
+      <div class="fg"><label>Prénom &amp; Nom</label><input type="text" id="regName" placeholder="Marie Dupont" class="fi"/></div>
+      <div id="teacherRegFields">
+        <div class="fg" style="margin-bottom:14px"><label>Identifiant <span class="fhint">(lettres, chiffres, point — sans espace)</span></label><input type="text" id="regUser" placeholder="m.dupont" class="fi" autocomplete="username"/></div>
+        <div class="fg"><label>Mot de passe <span class="fhint">(min. 6 caractères)</span></label><input type="password" id="regPass" placeholder="••••••••" class="fi"/></div>
       </div>
-      <div class="field-group">
-        <label>Identifiant <span class="field-hint">(lettres, chiffres, point — pas d'espace)</span></label>
-        <input type="text" id="regEmail" placeholder="Ex: marie.dupont" class="field" autocomplete="username"/>
+      <div id="studentRegFields" style="display:none">
+        <div class="code-hint"><div class="ci">🏫</div><p>Entrez le <strong>code de classe</strong> donné par votre professeur pour rejoindre sa classe.</p></div>
+        <div class="fg" style="margin-top:10px"><label>Code de classe</label><input type="text" id="regCode" placeholder="ABC-XYZ" class="fi code-fi"/></div>
+        <div class="fg" style="margin-top:10px"><label>Identifiant <span class="fhint">(pour vous reconnecter ensuite)</span></label><input type="text" id="regStudentUser" placeholder="marie.dupont" class="fi" autocomplete="username"/></div>
+        <div class="fg"><label>Mot de passe</label><input type="password" id="regStudentPass" placeholder="••••••••" class="fi"/></div>
       </div>
-      <div class="field-group">
-        <label>Mot de passe</label>
-        <input type="password" id="regPassword" placeholder="Min. 6 caractères" class="field"/>
-      </div>
-      <!-- Student only -->
-      <div class="field-group student-field" id="classCodeField" style="display:none">
-        <label>Code de classe <span class="field-hint">(donné par votre professeur)</span></label>
-        <input type="text" id="regClassCode" placeholder="EX: ABC-123" class="field code-field"/>
-      </div>
-      <button class="btn-primary w-full" id="registerBtn">Créer mon compte</button>
+      <button class="bp wf" id="registerBtn">Créer mon compte</button>
     </div>
-
-    <div class="auth-error" id="authError"></div>
-    <div class="firebase-notice" id="firebaseNotice" style="display:none">
-      ⚠️ Firebase non configuré — mode démonstration local activé
-    </div>
+    <div class="auth-err" id="authErr"></div>
+    <div id="fbNote"></div>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     TEACHER APP
-══════════════════════════════════════════════ -->
+<!-- ═══════════════ TEACHER APP ═══════════════ -->
 <div id="teacherApp" class="screen">
-
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-top">
-      <div class="sidebar-logo">
-        <div class="logo-mark sm"><span>E</span></div>
-        <div>
-          <div class="logo-name">EduFlow</div>
-          <div class="logo-role">Enseignant·e</div>
-        </div>
-      </div>
+    <div class="sb-top">
+      <div class="sb-logo"><div class="lmark sm"><span>E</span></div><div><div class="ln">EduFlow</div><div class="lr">Enseignant·e</div></div></div>
       <nav class="nav">
-        <button class="nav-btn active" data-view="dashboard">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Tableau de bord
-        </button>
-        <button class="nav-btn" data-view="create">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-          Créer
-        </button>
-        <button class="nav-btn" data-view="classes">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Mes Classes
-        </button>
-        <button class="nav-btn" data-view="assignments">
-          <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 12 2 2 4-4"/></svg>
-          Travaux & Notes
-        </button>
-        <button class="nav-btn" data-view="library">
-          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          Bibliothèque
-        </button>
+        <button class="nb active" data-view="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Tableau de bord</button>
+        <button class="nb" data-view="create"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Créer</button>
+        <button class="nb" data-view="classes"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Mes Classes</button>
+        <button class="nb" data-view="assignments"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 12 2 2 4-4"/></svg>Travaux &amp; Notes</button>
+        <button class="nb" data-view="library"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Bibliothèque</button>
       </nav>
     </div>
-    <div class="sidebar-bottom">
-      <div class="user-chip" id="teacherChip">
-        <div class="user-avatar" id="teacherAvatar">P</div>
-        <div class="user-info">
-          <div class="user-name" id="teacherNameDisplay">Prof</div>
-          <div class="user-sub">Enseignant·e</div>
-        </div>
-      </div>
-      <button class="nav-btn logout-btn" id="logoutBtn">
-        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Déconnexion
-      </button>
+    <div class="sb-bot">
+      <div class="uchip"><div class="uav" id="tAvatar">P</div><div><div class="unm" id="tName">Prof</div><div class="usb">Enseignant·e</div></div></div>
+      <button class="nb" id="logoutBtn" style="color:var(--tx3)"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Déconnexion</button>
     </div>
   </aside>
-
-  <main class="main" id="teacherMain">
-
+  <main class="main">
     <!-- DASHBOARD -->
     <section class="view active" id="view-dashboard">
-      <div class="view-head">
-        <h1 class="view-title">Bonjour, <span id="teacherGreet">Professeur</span> 👋</h1>
-        <p class="view-sub">Que créez-vous aujourd'hui ?</p>
+      <div class="vh"><div><h1 class="vtitle">Bonjour, <span id="tGreet">Professeur</span> 👋</h1><p class="vsub">Que créez-vous aujourd'hui ?</p></div></div>
+      <div class="stats"><div class="scard"><span class="snum" id="sClasses">0</span><span class="slbl">Classes</span></div><div class="scard"><span class="snum" id="sStudents">0</span><span class="slbl">Élèves</span></div><div class="scard"><span class="snum" id="sDocs">0</span><span class="slbl">Documents</span></div><div class="scard"><span class="snum" id="sPending">0</span><span class="slbl">À corriger</span></div></div>
+      <h2 class="stitle">Créer rapidement</h2>
+      <div class="qgrid">
+        <button class="qc" data-create="slides"><div class="qci" style="background:#3d6b8a">🖥</div><div class="qcl">Diaporama</div><div class="qcd">Slides animées + images</div></button>
+        <button class="qc" data-create="exercise"><div class="qci" style="background:#3d6b4f">✏️</div><div class="qcl">Exercice</div><div class="qcd">Trous, QCM, ouvert</div></button>
+        <button class="qc" data-create="crossword"><div class="qci" style="background:#7a3d6b">🔤</div><div class="qcl">Mots croisés</div><div class="qcd">Grille interactive</div></button>
+        <button class="qc" data-create="wordsearch"><div class="qci" style="background:#3d4f6b">🔍</div><div class="qcl">Mots mêlés</div><div class="qcd">Sélection souris/tactile</div></button>
+        <button class="qc" data-create="matching"><div class="qci" style="background:#5a6b3d">🔗</div><div class="qcl">Relier</div><div class="qcd">Associer colonnes</div></button>
+        <button class="qc" data-create="evaluation"><div class="qci" style="background:#6b4f3d">📝</div><div class="qcl">Évaluation</div><div class="qcd">Noté, corrigé auto</div></button>
       </div>
-      <div class="dash-stats" id="dashStats">
-        <div class="stat-card"><span class="stat-n" id="sClasses">0</span><span class="stat-l">Classes</span></div>
-        <div class="stat-card"><span class="stat-n" id="sStudents">0</span><span class="stat-l">Élèves</span></div>
-        <div class="stat-card"><span class="stat-n" id="sDocs">0</span><span class="stat-l">Documents</span></div>
-        <div class="stat-card"><span class="stat-n" id="sPending">0</span><span class="stat-l">À corriger</span></div>
-      </div>
-      <h2 class="section-title">Créer rapidement</h2>
-      <div class="quick-grid">
-        <button class="qcard" data-create="slides">
-          <div class="qcard-icon" style="background:#3d6b8a">🖥</div>
-          <div class="qcard-label">Diaporama</div>
-          <div class="qcard-desc">Slides animées + images</div>
-        </button>
-        <button class="qcard" data-create="exercise">
-          <div class="qcard-icon" style="background:#3d6b4f">✏️</div>
-          <div class="qcard-label">Exercice</div>
-          <div class="qcard-desc">Textes à trous, QCM</div>
-        </button>
-        <button class="qcard" data-create="crossword">
-          <div class="qcard-icon" style="background:#7a3d6b">🔤</div>
-          <div class="qcard-label">Mots croisés</div>
-          <div class="qcard-desc">Grille animée interactive</div>
-        </button>
-        <button class="qcard" data-create="evaluation">
-          <div class="qcard-icon" style="background:#6b4f3d">📝</div>
-          <div class="qcard-label">Évaluation</div>
-          <div class="qcard-desc">Noté, corrigé auto</div>
-        </button>
-        <button class="qcard" data-create="wordsearch">
-          <div class="qcard-icon" style="background:#3d4f6b">🔍</div>
-          <div class="qcard-label">Mots mêlés</div>
-          <div class="qcard-desc">Grille de recherche</div>
-        </button>
-        <button class="qcard" data-create="matching">
-          <div class="qcard-icon" style="background:#5a6b3d">🔗</div>
-          <div class="qcard-label">Relier</div>
-          <div class="qcard-desc">Associer colonnes</div>
-        </button>
-      </div>
-      <h2 class="section-title" style="margin-top:32px">Récents</h2>
-      <div id="recentDocs" class="doc-list"><p class="empty">Aucun document créé pour l'instant.</p></div>
+      <h2 class="stitle">Créations récentes</h2>
+      <div id="recentDocs" class="doc-list"><p class="empty">Aucun document créé.</p></div>
     </section>
-
     <!-- CREATE -->
     <section class="view" id="view-create">
-      <div class="view-head">
-        <h1 class="view-title" id="createTitle">Créer</h1>
-        <button class="btn-ghost" id="backToCreate">← Retour</button>
-      </div>
+      <div class="vh"><div><h1 class="vtitle" id="createTitle">Créer</h1><p class="vsub" id="createSub"></p></div><button class="bg" id="backBtn">← Retour</button></div>
       <div id="createContainer"></div>
     </section>
-
     <!-- CLASSES -->
     <section class="view" id="view-classes">
-      <div class="view-head">
-        <h1 class="view-title">Mes Classes</h1>
-        <button class="btn-primary" id="newClassBtn">+ Nouvelle classe</button>
-      </div>
-      <div id="classesList" class="classes-grid"><p class="empty">Aucune classe créée.</p></div>
+      <div class="vh"><div><h1 class="vtitle">Mes Classes</h1><p class="vsub">Gérez vos classes et partagez des documents</p></div><button class="bp" id="newClassBtn">+ Nouvelle classe</button></div>
+      <div id="classesList" class="clgrid"><p class="empty">Aucune classe. Créez-en une pour démarrer !</p></div>
     </section>
-
     <!-- ASSIGNMENTS -->
     <section class="view" id="view-assignments">
-      <div class="view-head">
-        <h1 class="view-title">Travaux & Notes</h1>
-        <div class="filter-row">
-          <select class="field sm" id="assignFilterClass">
-            <option value="">Toutes les classes</option>
-          </select>
-          <select class="field sm" id="assignFilterStatus">
-            <option value="">Tous les statuts</option>
-            <option value="pending">À corriger</option>
-            <option value="graded">Notés</option>
-          </select>
-        </div>
+      <div class="vh"><div><h1 class="vtitle">Travaux &amp; Notes</h1><p class="vsub">Corrigez et notez les rendus</p></div>
+        <div class="frow"><select class="fi sm" id="afClass"><option value="">Toutes les classes</option></select><select class="fi sm" id="afStatus"><option value="">Tous statuts</option><option value="pending">À corriger</option><option value="graded">Notés</option></select></div>
       </div>
-      <div id="submissionsList"><p class="empty">Aucun rendu pour l'instant.</p></div>
+      <div id="subsList"><p class="empty">Aucun rendu pour l'instant.</p></div>
     </section>
-
     <!-- LIBRARY -->
     <section class="view" id="view-library">
-      <div class="view-head">
-        <h1 class="view-title">Bibliothèque</h1>
-        <div class="filter-row">
-          <button class="filter-chip active" data-type="all">Tout</button>
-          <button class="filter-chip" data-type="slides">Diaporamas</button>
-          <button class="filter-chip" data-type="exercise">Exercices</button>
-          <button class="filter-chip" data-type="crossword">Mots croisés</button>
-          <button class="filter-chip" data-type="evaluation">Évaluations</button>
-        </div>
+      <div class="vh"><div><h1 class="vtitle">Bibliothèque</h1><p class="vsub">Tous vos documents sauvegardés</p></div>
+        <div class="frow"><button class="fchip active" data-filter="all">Tout</button><button class="fchip" data-filter="slides">Diaporamas</button><button class="fchip" data-filter="exercise">Exercices</button><button class="fchip" data-filter="crossword">Mots croisés</button><button class="fchip" data-filter="wordsearch">Mots mêlés</button><button class="fchip" data-filter="matching">Relier</button><button class="fchip" data-filter="evaluation">Évaluations</button></div>
       </div>
-      <div id="libraryGrid" class="doc-grid"><p class="empty">Bibliothèque vide.</p></div>
+      <div id="libGrid" class="doc-grid"><p class="empty">Bibliothèque vide.</p></div>
     </section>
-
   </main>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     STUDENT APP
-══════════════════════════════════════════════ -->
+<!-- ═══════════════ STUDENT APP ═══════════════ -->
 <div id="studentApp" class="screen">
-  <header class="student-header">
-    <div class="student-logo"><div class="logo-mark sm"><span>E</span></div> EduFlow</div>
-    <div class="student-header-right">
-      <span class="student-class-badge" id="studentClassBadge">—</span>
-      <div class="user-chip sm">
-        <div class="user-avatar sm" id="studentAvatar">É</div>
-        <span id="studentNameDisplay">Élève</span>
-      </div>
-      <button class="btn-ghost sm" id="studentLogoutBtn">Déco</button>
+  <header class="sh2">
+    <div class="slogo"><div class="lmark sm"><span>E</span></div>EduFlow</div>
+    <div class="shr2">
+      <span class="scbadge" id="sBadge">—</span>
+      <div class="uchip sm"><div class="uav sm" id="sAvatar">É</div><span id="sNameDisp">Élève</span></div>
+      <button class="bg sm" id="sLogoutBtn">Déco</button>
     </div>
   </header>
-
-  <div class="student-layout">
-    <aside class="student-nav">
-      <button class="snav-btn active" data-sview="home">🏠 Accueil</button>
-      <button class="snav-btn" data-sview="assignments">📋 Mes devoirs</button>
-      <button class="snav-btn" data-sview="done">✅ Rendus</button>
+  <div class="slayout">
+    <aside class="snav">
+      <button class="snb active" data-sv="home">🏠 Accueil</button>
+      <button class="snb" data-sv="todo">📋 Devoirs</button>
+      <button class="snb" data-sv="done">✅ Mes rendus</button>
     </aside>
-
-    <main class="student-main">
-      <div class="sview active" id="sview-home">
-        <h2 class="view-title">Bonjour, <span id="studentGreet">Élève</span> ! 👋</h2>
-        <p class="view-sub" id="studentClassName">Classe : —</p>
-        <div id="studentDocs" class="sdoc-grid"><p class="empty">Aucun document partagé par votre professeur.</p></div>
-      </div>
-      <div class="sview" id="sview-assignments">
-        <h2 class="view-title">Mes devoirs à faire</h2>
-        <div id="studentAssignments"><p class="empty">Aucun devoir assigné.</p></div>
-      </div>
-      <div class="sview" id="sview-done">
-        <h2 class="view-title">Mes travaux rendus</h2>
-        <div id="studentDone"><p class="empty">Aucun travail rendu.</p></div>
-      </div>
+    <main class="smain">
+      <div class="sv active" id="sv-home"><h2 class="vtitle">Bonjour, <span id="sGreet">Élève</span> ! 👋</h2><p class="vsub" id="sClassName">—</p><div id="sDocs" class="sdgrid"><p class="empty">Aucun document partagé par votre professeur.</p></div></div>
+      <div class="sv" id="sv-todo"><h2 class="vtitle">Devoirs à faire</h2><div id="sTodo"><p class="empty">Aucun devoir assigné.</p></div></div>
+      <div class="sv" id="sv-done"><h2 class="vtitle">Mes travaux rendus</h2><div id="sDone"><p class="empty">Aucun rendu.</p></div></div>
     </main>
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════════ -->
-
-<!-- New class modal -->
-<div class="modal-overlay" id="newClassModal">
-  <div class="modal">
-    <div class="modal-head"><h3>Créer une classe</h3><button class="modal-x" data-close="newClassModal">✕</button></div>
-    <div class="modal-body">
-      <div class="field-group"><label>Nom de la classe</label><input type="text" id="className" placeholder="Ex: 3ème B" class="field"/></div>
-      <div class="field-group"><label>Niveau</label>
-        <select id="classLevel" class="field">
-          <option>CP</option><option>CE1</option><option>CE2</option><option>CM1</option><option>CM2</option>
-          <option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option>
-          <option>Seconde</option><option>Première</option><option>Terminale</option>
-        </select>
-      </div>
-      <div class="field-group"><label>Matière principale</label><input type="text" id="classSubject" placeholder="Ex: Mathématiques" class="field"/></div>
-      <button class="btn-primary w-full" id="createClassBtn">Créer la classe</button>
-    </div>
-  </div>
+<!-- ═══════════════ MODALS ═══════════════ -->
+<!-- Nouvelle Classe -->
+<div class="mo" id="moNewClass">
+  <div class="modal"><div class="mh"><h3>Créer une classe</h3><button class="mx" data-close="moNewClass">✕</button></div>
+  <div class="mb">
+    <div class="fg"><label>Nom de la classe</label><input type="text" id="clName" placeholder="Ex: 3ème B — Maths" class="fi"/></div>
+    <div class="fg"><label>Niveau</label><select id="clLevel" class="fi"><option>CP</option><option>CE1</option><option>CE2</option><option>CM1</option><option>CM2</option><option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option><option>Seconde</option><option>Première</option><option>Terminale</option><option>BTS/IUT</option></select></div>
+    <div class="fg"><label>Matière principale</label><input type="text" id="clSubject" placeholder="Ex: Mathématiques" class="fi"/></div>
+    <button class="bp wf" id="createClBtn">✅ Créer la classe</button>
+  </div></div>
 </div>
-
-<!-- Class detail modal -->
-<div class="modal-overlay" id="classDetailModal">
-  <div class="modal modal-lg">
-    <div class="modal-head">
-      <h3 id="classDetailTitle">Classe</h3>
-      <button class="modal-x" data-close="classDetailModal">✕</button>
+<!-- Détail Classe -->
+<div class="mo" id="moClassDetail">
+  <div class="modal lg"><div class="mh"><h3 id="cdTitle">Classe</h3><button class="mx" data-close="moClassDetail">✕</button></div>
+  <div class="mb">
+    <div class="codebox"><span class="cblbl">Code élèves :</span><span class="cbcode" id="cdCode">—</span><button class="bg sm" id="copyCode">📋 Copier</button></div>
+    <p style="font-size:12px;color:var(--tx3);margin-top:-8px;margin-bottom:4px">Les élèves entrent ce code lors de la connexion ou création de compte.</p>
+    <div class="tabs"><button class="tab active" data-ct="students">Élèves (<span id="cdCount">0</span>)</button><button class="tab" data-ct="docs">Documents partagés</button></div>
+    <div class="ctab active" id="ct-students"><div id="cdStudents"><p class="empty">Aucun élève.</p></div></div>
+    <div class="ctab" id="ct-docs">
+      <button class="bp sm" id="shareDocBtn" style="margin-bottom:12px">+ Partager un document</button>
+      <div id="cdDocs"><p class="empty">Aucun document partagé.</p></div>
     </div>
-    <div class="modal-body">
-      <div class="class-code-box">
-        <span class="class-code-label">Code d'accès élèves :</span>
-        <span class="class-code" id="classDetailCode">—</span>
-        <button class="btn-ghost sm" id="copyClassCode">📋 Copier</button>
-      </div>
-      <div class="tabs">
-        <button class="tab active" data-ctab="students">Élèves (<span id="studentsCount">0</span>)</button>
-        <button class="tab" data-ctab="docs">Documents partagés</button>
-      </div>
-      <div class="ctab active" id="ctab-students">
-        <div id="studentsList"><p class="empty">Aucun élève inscrit.</p></div>
-      </div>
-      <div class="ctab" id="ctab-docs">
-        <button class="btn-primary" id="shareDocBtn">+ Partager un document</button>
-        <div id="sharedDocsList" style="margin-top:16px"><p class="empty">Aucun document partagé.</p></div>
-      </div>
-    </div>
-  </div>
+  </div></div>
 </div>
-
-<!-- Share doc modal -->
-<div class="modal-overlay" id="shareDocModal">
-  <div class="modal">
-    <div class="modal-head"><h3>Partager un document</h3><button class="modal-x" data-close="shareDocModal">✕</button></div>
-    <div class="modal-body">
-      <div class="field-group"><label>Choisir un document</label>
-        <select id="shareDocSelect" class="field"><option value="">— Sélectionner —</option></select>
-      </div>
-      <div class="field-group"><label>Date limite (optionnel)</label><input type="date" id="shareDueDate" class="field"/></div>
-      <div class="field-group">
-        <label class="check-label"><input type="checkbox" id="shareGraded"/> Document noté (les élèves doivent rendre)</label>
-      </div>
-      <button class="btn-primary w-full" id="confirmShareDoc">Partager</button>
-    </div>
-  </div>
+<!-- Partager Doc -->
+<div class="mo" id="moShareDoc">
+  <div class="modal"><div class="mh"><h3>Partager un document</h3><button class="mx" data-close="moShareDoc">✕</button></div>
+  <div class="mb">
+    <div class="fg"><label>Document</label><select id="sdSelect" class="fi"><option value="">— Sélectionner —</option></select></div>
+    <div class="fg"><label>Date limite (optionnel)</label><input type="date" id="sdDue" class="fi"/></div>
+    <div class="fg"><label class="ckl2"><input type="checkbox" id="sdGraded"/> Document noté — les élèves doivent rendre</label></div>
+    <button class="bp wf" id="confirmShare">🔗 Partager avec la classe</button>
+  </div></div>
 </div>
-
-<!-- Grade modal -->
-<div class="modal-overlay" id="gradeModal">
-  <div class="modal modal-lg">
-    <div class="modal-head"><h3>Corriger & noter</h3><button class="modal-x" data-close="gradeModal">✕</button></div>
-    <div class="modal-body">
-      <div id="gradeContent" style="max-height:400px;overflow-y:auto;margin-bottom:16px"></div>
-      <div class="grade-row">
-        <div class="field-group" style="flex:1"><label>Note /20</label><input type="number" id="gradeScore" min="0" max="20" step="0.5" class="field" placeholder="Ex: 15.5"/></div>
-        <div class="field-group" style="flex:2"><label>Commentaire</label><input type="text" id="gradeComment" class="field" placeholder="Bon travail, mais..."/></div>
-      </div>
-      <button class="btn-primary w-full" id="submitGradeBtn">Enregistrer la note</button>
+<!-- Corriger & noter -->
+<div class="mo" id="moGrade">
+  <div class="modal lg"><div class="mh"><h3>✏️ Corriger &amp; noter</h3><button class="mx" data-close="moGrade">✕</button></div>
+  <div class="mb">
+    <div id="gradeContent" style="max-height:360px;overflow-y:auto;margin-bottom:10px"></div>
+    <div class="grade-row">
+      <div class="fg" style="flex:1"><label>Note /20</label><input type="number" id="gradeScore" min="0" max="20" step="0.5" class="fi" placeholder="15.5"/></div>
+      <div class="fg" style="flex:2"><label>Commentaire</label><input type="text" id="gradeComment" class="fi" placeholder="Très bon travail !"/></div>
     </div>
-  </div>
+    <button class="bp wf" id="submitGradeBtn">💾 Enregistrer la note</button>
+  </div></div>
 </div>
-
-<!-- Student doc viewer -->
-<div class="modal-overlay" id="studentDocModal">
-  <div class="modal modal-xl">
-    <div class="modal-head">
-      <h3 id="studentDocTitle">Document</h3>
-      <button class="modal-x" data-close="studentDocModal">✕</button>
-    </div>
-    <div class="modal-body" id="studentDocContent"></div>
-    <div class="modal-foot" id="studentDocFoot" style="display:none">
-      <button class="btn-primary" id="submitWorkBtn">📤 Rendre mon travail</button>
-    </div>
-  </div>
+<!-- Visionneuse doc (prof + élève) -->
+<div class="mo" id="moDocView">
+  <div class="modal xl"><div class="mh"><h3 id="dvTitle">Document</h3><button class="mx" data-close="moDocView">✕</button></div>
+  <div class="mb" id="dvContent" style="max-height:68vh;overflow-y:auto;padding:16px 22px"></div>
+  <div class="mf" id="dvFoot" style="display:none">
+    <div id="dvFootContent"><button class="bp" id="submitWorkBtn">📤 Rendre mon travail</button></div>
+  </div></div>
 </div>
-
 <!-- Loading -->
-<div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-box">
-    <div class="spinner"></div>
-    <p id="loadingText">Chargement…</p>
-  </div>
-</div>
-
+<div class="ldo" id="ldo"><div class="ldb"><div class="spinner"></div><p id="ldoTxt">Chargement…</p><p style="font-size:12px;color:var(--tx3)">Veuillez patienter</p></div></div>
 <!-- Toast -->
-<div class="toast-wrap" id="toastWrap"></div>
-
+<div class="twrap" id="twrap"></div>
 <!-- Chat FAB -->
-<button class="chat-fab" id="chatFab">💬</button>
-<div class="chat-panel" id="chatPanel">
-  <div class="chat-head">
-    <span>🤖 Assistant EduFlow</span>
-    <button class="modal-x" id="closeChat">✕</button>
+<button class="cfab" id="cfab" title="Assistant IA">💬</button>
+<div class="cpanel" id="cpanel">
+  <div class="chd"><span>🤖 Assistant EduFlow</span><button class="mx" id="cclose">✕</button></div>
+  <div class="cmsgs" id="cmsgs">
+    <div class="cmsg a"><div class="cbub">Bonjour ! Je suis votre assistant pédagogique. Comment puis-je vous aider aujourd'hui ?</div></div>
   </div>
-  <div class="chat-msgs" id="chatMsgs">
-    <div class="cmsg assistant"><div class="cbubble">Bonjour ! Comment puis-je vous aider ? Je peux vous aider à créer des activités, donner des conseils pédagogiques, etc.</div></div>
-  </div>
-  <div class="chat-foot">
-    <textarea class="chat-input" id="chatInput" placeholder="Posez votre question…" rows="1"></textarea>
-    <button class="chat-send" id="chatSend">➤</button>
+  <div class="cfoot">
+    <textarea class="cinp" id="cinp" placeholder="Posez votre question…" rows="1"></textarea>
+    <button class="csend" id="csend">➤</button>
   </div>
 </div>
-
 <script src="config.js"></script>
-<script src="db.js"></script>
-<script src="auth.js"></script>
-<script src="creators.js"></script>
-<script src="activities.js"></script>
-<script src="student.js"></script>
-<script src="app.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+// FIREBASE INIT
+// ════════════════════════════════════════════════════════
+let db, auth, FB_OK = false;
+try {
+  firebase.initializeApp(EDUFLOW_CONFIG.FIREBASE);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  FB_OK = true;
+  console.log("✅ Firebase connecté");
+} catch(e) {
+  FB_OK = false;
+  console.warn("Firebase mode local:", e.message);
+  document.addEventListener("DOMContentLoaded", () => {
+    const n = document.getElementById("fbNote");
+    if(n) { n.className="fb-note"; n.style.cssText="background:rgba(232,168,56,.08);border:1px solid rgba(232,168,56,.2);color:var(--tx2)"; n.textContent="⚠️ Mode local — Firebase non configuré"; }
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// LOCALSTORAGE HELPER
+// ════════════════════════════════════════════════════════
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem("ef_"+k)||"null"); } catch { return null; } },
+  set: (k,v) => { localStorage.setItem("ef_"+k, JSON.stringify(v)); return v; }
+};
+
+// ════════════════════════════════════════════════════════
+// DB LAYER
+// ════════════════════════════════════════════════════════
+const DB = {
+  async createUser(uid, data) {
+    if(FB_OK) await db.collection("users").doc(uid).set({...data, at: firebase.firestore.FieldValue.serverTimestamp()});
+    else { const u=LS.get("users")||{}; u[uid]=data; LS.set("users",u); }
+  },
+  async getUser(uid) {
+    if(FB_OK) { const d=await db.collection("users").doc(uid).get(); return d.exists?{id:d.id,...d.data()}:null; }
+    const u=LS.get("users")||{}; return u[uid]?{id:uid,...u[uid]}:null;
+  },
+  async getUserByUsername(uname) {
+    if(FB_OK) { const q=await db.collection("users").where("username","==",uname).limit(1).get(); return q.empty?null:{id:q.docs[0].id,...q.docs[0].data()}; }
+    const u=LS.get("users")||{}; const e=Object.entries(u).find(([,v])=>v.username===uname); return e?{id:e[0],...e[1]}:null;
+  },
+  async createClass(data) {
+    const code = Math.random().toString(36).slice(2,5).toUpperCase()+"-"+Math.random().toString(36).slice(2,5).toUpperCase();
+    const d = {...data, code, students:[], at:new Date().toISOString()};
+    if(FB_OK) { const r=await db.collection("classes").add(d); return {id:r.id,...d}; }
+    const id="cls_"+Date.now(); const c=LS.get("classes")||{}; c[id]=d; LS.set("classes",c); return {id,...d};
+  },
+  async getTeacherClasses(tid) {
+    if(FB_OK) { const q=await db.collection("classes").where("teacherId","==",tid).get(); return q.docs.map(d=>({id:d.id,...d.data()})); }
+    const c=LS.get("classes")||{}; return Object.entries(c).filter(([,v])=>v.teacherId===tid).map(([id,v])=>({id,...v}));
+  },
+  async getClass(cid) {
+    if(FB_OK) { const d=await db.collection("classes").doc(cid).get(); return d.exists?{id:d.id,...d.data()}:null; }
+    const c=LS.get("classes")||{}; return c[cid]?{id:cid,...c[cid]}:null;
+  },
+  async getClassByCode(code) {
+    const up = code.toUpperCase();
+    if(FB_OK) { const q=await db.collection("classes").where("code","==",up).limit(1).get(); return q.empty?null:{id:q.docs[0].id,...q.docs[0].data()}; }
+    const c=LS.get("classes")||{}; const e=Object.entries(c).find(([,v])=>v.code===up); return e?{id:e[0],...e[1]}:null;
+  },
+  async addStudentToClass(cid, uid) {
+    if(FB_OK) { const ref=db.collection("classes").doc(cid); const d=await ref.get(); const s=d.data().students||[]; if(!s.includes(uid)) await ref.update({students:[...s,uid]}); return; }
+    const c=LS.get("classes")||{}; if(c[cid]){ if(!c[cid].students) c[cid].students=[]; if(!c[cid].students.includes(uid)){ c[cid].students.push(uid); LS.set("classes",c); }}
+  },
+  async saveDoc(data) {
+    const d = {...data, at:new Date().toISOString()};
+    if(FB_OK) { const r=await db.collection("documents").add(d); return {id:r.id,...d}; }
+    const id="doc_"+Date.now(); const docs=LS.get("documents")||{}; docs[id]=d; LS.set("documents",docs); return {id,...d};
+  },
+  async getTeacherDocs(tid) {
+    if(FB_OK) { const q=await db.collection("documents").where("teacherId","==",tid).get(); return q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>new Date(b.at)-new Date(a.at)); }
+    const docs=LS.get("documents")||{}; return Object.entries(docs).filter(([,v])=>v.teacherId===tid).map(([id,v])=>({id,...v})).sort((a,b)=>new Date(b.at)-new Date(a.at));
+  },
+  async getDoc(did) {
+    if(FB_OK) { const d=await db.collection("documents").doc(did).get(); return d.exists?{id:d.id,...d.data()}:null; }
+    const docs=LS.get("documents")||{}; return docs[did]?{id:did,...docs[did]}:null;
+  },
+  async deleteDoc(did) {
+    if(FB_OK) { await db.collection("documents").doc(did).delete(); return; }
+    const docs=LS.get("documents")||{}; delete docs[did]; LS.set("documents",docs);
+  },
+  async shareDoc(data) {
+    const d = {...data, at:new Date().toISOString()};
+    if(FB_OK) { const r=await db.collection("shares").add(d); return {id:r.id,...d}; }
+    const id="shr_"+Date.now(); const s=LS.get("shares")||{}; s[id]=d; LS.set("shares",s); return {id,...d};
+  },
+  async getClassShares(cid) {
+    if(FB_OK) { const q=await db.collection("shares").where("classId","==",cid).get(); return q.docs.map(d=>({id:d.id,...d.data()})); }
+    const s=LS.get("shares")||{}; return Object.entries(s).filter(([,v])=>v.classId===cid).map(([id,v])=>({id,...v}));
+  },
+  async submitWork(data) {
+    const d = {...data, status:"pending", at:new Date().toISOString()};
+    if(FB_OK) { const r=await db.collection("submissions").add(d); return {id:r.id,...d}; }
+    const id="sub_"+Date.now(); const s=LS.get("submissions")||{}; s[id]=d; LS.set("submissions",s); return {id,...d};
+  },
+  async getSubmissions(filters={}) {
+    let list = [];
+    if(FB_OK) {
+      let q = db.collection("submissions");
+      if(filters.teacherId) q = q.where("teacherId","==",filters.teacherId);
+      if(filters.studentId) q = q.where("studentId","==",filters.studentId);
+      if(filters.classId)   q = q.where("classId","==",filters.classId);
+      const snap = await q.get(); list = snap.docs.map(d=>({id:d.id,...d.data()}));
+    } else {
+      const s=LS.get("submissions")||{};
+      list = Object.entries(s).map(([id,v])=>({id,...v}));
+      if(filters.teacherId) list = list.filter(x=>x.teacherId===filters.teacherId);
+      if(filters.studentId) list = list.filter(x=>x.studentId===filters.studentId);
+      if(filters.classId)   list = list.filter(x=>x.classId===filters.classId);
+    }
+    return list.sort((a,b)=>new Date(b.at)-new Date(a.at));
+  },
+  async gradeSubmission(sid, score, comment) {
+    if(FB_OK) { await db.collection("submissions").doc(sid).update({score,comment,status:"graded",gradedAt:firebase.firestore.FieldValue.serverTimestamp()}); return; }
+    const s=LS.get("submissions")||{}; if(s[sid]){ s[sid]={...s[sid],score,comment,status:"graded"}; LS.set("submissions",s); }
+  }
+};
+
+// ════════════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════════════
+let CU = null;
+
+async function registerUser(name, uname, pass, role, classCode) {
+  const clean = uname.trim().toLowerCase().replace(/[^a-z0-9._-]/g,"");
+  if(clean.length < 3) throw new Error("Identifiant trop court (min. 3 caractères).");
+  if(pass.length < 6)  throw new Error("Mot de passe trop court (min. 6 caractères).");
+  if(await DB.getUserByUsername(clean)) throw new Error("Cet identifiant est déjà utilisé.");
+  const uid = "usr_"+Date.now()+"_"+Math.random().toString(36).slice(2,5);
+  const creds = LS.get("creds")||{}; creds[clean]={uid,pass,role}; LS.set("creds",creds);
+  const data = {uid, username:clean, name, role};
+  if(role==="student") {
+    if(!classCode) throw new Error("Code de classe requis.");
+    const cls = await DB.getClassByCode(classCode.trim());
+    if(!cls) throw new Error("Code de classe invalide. Demandez-le à votre professeur.");
+    data.classId=cls.id; data.className=cls.name; data.teacherId=cls.teacherId;
+    await DB.createUser(uid,data); await DB.addStudentToClass(cls.id,uid);
+  } else {
+    await DB.createUser(uid,data);
+  }
+  LS.set("session",{uid}); return data;
+}
+
+async function loginUser(uname, pass, role) {
+  const clean = uname.trim().toLowerCase();
+  const creds = LS.get("creds")||{};
+  const cr = creds[clean];
+  if(!cr) throw new Error("Identifiant introuvable.");
+  if(cr.pass !== pass) throw new Error("Mot de passe incorrect.");
+  if(cr.role !== role) throw new Error("Ce compte est un compte "+(cr.role==="teacher"?"enseignant":"élève")+".");
+  const data = await DB.getUser(cr.uid);
+  if(!data) throw new Error("Données du compte introuvables.");
+  LS.set("session",{uid:cr.uid}); return data;
+}
+
+async function loginByCode(code) {
+  const cls = await DB.getClassByCode(code.trim());
+  if(!cls) throw new Error("Code de classe invalide. Vérifiez avec votre professeur.");
+  return {uid:"guest_"+Date.now(), name:"Élève (invité)", role:"student", classId:cls.id, className:cls.name, teacherId:cls.teacherId, isGuest:true};
+}
+
+async function restoreSession() {
+  const s = LS.get("session"); if(!s?.uid) return null;
+  return await DB.getUser(s.uid);
+}
+
+async function doLogout() { LS.set("session",null); CU=null; showScreen("authScreen"); }
+
+// ════════════════════════════════════════════════════════
+// UI UTILS
+// ════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const fmtDate = iso => { try { return new Date(iso).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}); } catch { return ""; }};
+const ICONS  = {slides:"🖥",exercise:"✏️",crossword:"🔤",wordsearch:"🔍",matching:"🔗",evaluation:"📝"};
+const LABELS = {slides:"Diaporama",exercise:"Exercice",crossword:"Mots croisés",wordsearch:"Mots mêlés",matching:"Relier",evaluation:"Évaluation"};
+const COLORS = {slides:"#3d6b8a",exercise:"#3d6b4f",crossword:"#7a3d6b",wordsearch:"#3d4f6b",matching:"#5a6b3d",evaluation:"#6b4f3d"};
+
+function showLoading(t="Chargement…") { $("ldoTxt").textContent=t; $("ldo").classList.add("open"); }
+function hideLoading() { $("ldo").classList.remove("open"); }
+function toast(msg, type="s") {
+  const w=$("twrap"), t=document.createElement("div");
+  t.className="toast "+type; t.textContent=msg;
+  w.appendChild(t); setTimeout(()=>t.remove(), 3500);
+}
+function openMo(id) { $(id)?.classList.add("open"); }
+function closeMo(id) { $(id)?.classList.remove("open"); }
+function authErr(msg) { const e=$("authErr"); e.textContent=msg; e.style.display="block"; setTimeout(()=>e.style.display="none",5000); }
+function showScreen(id) { document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active")); $(id)?.classList.add("active"); }
+function showTeacher(u) { showScreen("teacherApp"); initTeacher(u); }
+function showStudent(u)  { showScreen("studentApp");  initStudent(u);  }
+
+// ════════════════════════════════════════════════════════
+// AUTH UI BINDINGS
+// ════════════════════════════════════════════════════════
+let selRole = "teacher";
+document.querySelectorAll(".role-btn").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".role-btn").forEach(x=>x.classList.remove("active")); b.classList.add("active");
+  selRole = b.dataset.role;
+  $("loginUserRow").style.display  = selRole==="teacher"?"block":"none";
+  $("loginPassRow").style.display  = selRole==="teacher"?"block":"none";
+  $("loginCodeRow").style.display  = selRole==="student"?"block":"none";
+  $("teacherRegFields").style.display = selRole==="teacher"?"block":"none";
+  $("studentRegFields").style.display = selRole==="student"?"block":"none";
+}));
+document.querySelectorAll(".atab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".atab").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".aform").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active"); $(t.dataset.tab==="login"?"loginForm":"registerForm").classList.add("active");
+}));
+
+$("loginBtn").addEventListener("click", async ()=>{
+  try {
+    showLoading("Connexion…");
+    let u;
+    if(selRole==="student") {
+      const code = $("loginCode").value.trim();
+      if(!code) throw new Error("Entrez votre code de classe.");
+      u = await loginByCode(code);
+    } else {
+      u = await loginUser($("loginUser").value.trim(), $("loginPass").value, selRole);
+    }
+    CU = u; u.role==="teacher" ? showTeacher(u) : showStudent(u);
+  } catch(e) { authErr(e.message); } finally { hideLoading(); }
+});
+
+$("registerBtn").addEventListener("click", async ()=>{
+  try {
+    showLoading("Création du compte…");
+    const name = $("regName").value.trim();
+    if(!name) throw new Error("Entrez votre prénom et nom.");
+    let u;
+    if(selRole==="student") {
+      u = await registerUser(name, $("regStudentUser").value.trim(), $("regStudentPass").value, "student", $("regCode").value.trim());
+    } else {
+      u = await registerUser(name, $("regUser").value.trim(), $("regPass").value, "teacher");
+    }
+    CU = u; u.role==="teacher" ? showTeacher(u) : showStudent(u);
+    toast("✅ Compte créé !","s");
+  } catch(e) { authErr(e.message); } finally { hideLoading(); }
+});
+
+// Enter key on auth fields
+["loginUser","loginPass","loginCode","regName","regUser","regPass","regCode","regStudentUser","regStudentPass"].forEach(id=>{
+  $(id)?.addEventListener("keydown", e=>{ if(e.key==="Enter") { const tab=document.querySelector(".atab.active")?.dataset.tab; $(tab==="login"?"loginBtn":"registerBtn")?.click(); }});
+});
+
+// ════════════════════════════════════════════════════════
+// TEACHER APP
+// ════════════════════════════════════════════════════════
+let _cls=null, _subId=null;
+
+async function initTeacher(u) {
+  $("tGreet").textContent = u.name.split(" ")[0];
+  $("tName").textContent  = u.name;
+  $("tAvatar").textContent= u.name.charAt(0).toUpperCase();
+  await Promise.all([refreshStats(), renderRecentDocs(), renderClasses(), renderSubmissions(), renderLib()]);
+}
+
+function switchView(v) {
+  document.querySelectorAll(".view").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".nb[data-view]").forEach(x=>x.classList.remove("active"));
+  $("view-"+v)?.classList.add("active");
+  document.querySelector(".nb[data-view='"+v+"']")?.classList.add("active");
+}
+document.querySelectorAll(".nb[data-view]").forEach(b=>b.addEventListener("click",()=>switchView(b.dataset.view)));
+$("logoutBtn").addEventListener("click", doLogout);
+$("backBtn").addEventListener("click", ()=>switchView("dashboard"));
+document.querySelectorAll(".qc[data-create]").forEach(c=>c.addEventListener("click",()=>{ CREATORS.show(c.dataset.create); switchView("create"); }));
+
+async function refreshStats() {
+  if(!CU) return;
+  const [cls,docs,subs] = await Promise.all([DB.getTeacherClasses(CU.uid), DB.getTeacherDocs(CU.uid), DB.getSubmissions({teacherId:CU.uid})]);
+  $("sClasses").textContent = cls.length;
+  $("sStudents").textContent = cls.reduce((a,c)=>a+(c.students?.length||0),0);
+  $("sDocs").textContent = docs.length;
+  $("sPending").textContent = subs.filter(s=>s.status==="pending").length;
+}
+
+function docCardHTML(d, withShare=false) {
+  return `<div class="dc" onclick="previewDoc('${d.id}')">
+    <div class="dci" style="background:${COLORS[d.type]||'#444'}">${ICONS[d.type]||'📄'}</div>
+    <div style="flex:1;min-width:0"><div class="dct">${d.title||d.subject||'Sans titre'}</div><div class="dcm">${LABELS[d.type]||d.type} · ${d.level||''} · ${fmtDate(d.at)}</div></div>
+    <div class="dca">${withShare?`<button class="bt sm" onclick="event.stopPropagation();quickShare('${d.id}')">🔗</button>`:''}<button class="bt sm" onclick="event.stopPropagation();deleteDoc('${d.id}')">🗑</button></div>
+  </div>`;
+}
+
+async function renderRecentDocs() {
+  const el=$("recentDocs"), docs=await DB.getTeacherDocs(CU.uid);
+  el.innerHTML = docs.length ? docs.slice(0,6).map(d=>docCardHTML(d,false)).join("") : '<p class="empty">Aucun document créé.</p>';
+}
+
+async function renderLib(filter="all") {
+  const el=$("libGrid"), docs=await DB.getTeacherDocs(CU.uid);
+  const f = filter==="all" ? docs : docs.filter(d=>d.type===filter);
+  el.innerHTML = f.length ? f.map(d=>docCardHTML(d,true)).join("") : '<p class="empty">Aucun document.</p>';
+}
+document.querySelectorAll(".fchip").forEach(c=>c.addEventListener("click",()=>{
+  document.querySelectorAll(".fchip").forEach(x=>x.classList.remove("active")); c.classList.add("active"); renderLib(c.dataset.filter);
+}));
+
+window.previewDoc = async function(did) {
+  const doc = await DB.getDoc(did); if(!doc) return;
+  $("dvTitle").textContent = doc.title||doc.subject||"Document";
+  $("dvContent").innerHTML = "<div id='dvAct'></div>";
+  renderDocActivity(doc,"dvAct");
+  $("dvFoot").style.display="none";
+  openMo("moDocView");
+};
+window.deleteDoc = async function(did) {
+  if(!confirm("Supprimer ce document ?")) return;
+  await DB.deleteDoc(did); toast("Document supprimé","s");
+  await Promise.all([renderRecentDocs(), renderLib(), refreshStats()]);
+};
+
+// CLASSES
+$("newClassBtn").addEventListener("click",()=>openMo("moNewClass"));
+$("createClBtn").addEventListener("click", async ()=>{
+  const name=$("clName").value.trim(), level=$("clLevel").value, subject=$("clSubject").value.trim();
+  if(!name){toast("Entrez un nom de classe","e");return;}
+  try{
+    showLoading("Création…");
+    await DB.createClass({name,level,subject,teacherId:CU.uid});
+    closeMo("moNewClass"); $("clName").value=""; $("clSubject").value="";
+    toast(`✅ Classe "${name}" créée !`,"s");
+    await Promise.all([renderClasses(), refreshStats()]);
+  } catch(e){toast(e.message,"e");} finally{hideLoading();}
+});
+
+async function renderClasses() {
+  const el=$("classesList"), cls=await DB.getTeacherClasses(CU.uid);
+  if(!cls.length){el.innerHTML='<p class="empty">Aucune classe. Créez-en une pour commencer !</p>';return;}
+  el.innerHTML = cls.map(c=>`<div class="clcard" onclick="openClassDetail('${c.id}')">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-size:22px">🏫</span><div><div class="clname">${c.name}</div><div class="clmeta">${c.level}${c.subject?" · "+c.subject:""}</div></div></div>
+    <div class="clstats"><span>👥 ${c.students?.length||0} élève(s)</span><span class="cpill">${c.code}</span></div>
+  </div>`).join("");
+}
+
+window.openClassDetail = async function(cid) {
+  const cls = await DB.getClass(cid); if(!cls) return;
+  _cls = cls;
+  $("cdTitle").textContent = cls.name+" · "+cls.level;
+  $("cdCode").textContent  = cls.code;
+  const students = await Promise.all((cls.students||[]).map(uid=>DB.getUser(uid)));
+  $("cdCount").textContent = students.length;
+  const sl=$("cdStudents");
+  if(!students.length) {
+    sl.innerHTML=`<div style="text-align:center;padding:24px">
+      <p style="color:var(--tx2);margin-bottom:12px">Aucun élève inscrit.</p>
+      <div style="background:rgba(232,168,56,.08);border:1px solid rgba(232,168,56,.2);border-radius:10px;padding:18px">
+        <p style="font-size:13px;color:var(--tx2);margin-bottom:10px">Partagez ce code avec vos élèves :</p>
+        <div style="font-family:monospace;font-size:32px;font-weight:800;color:var(--acc);letter-spacing:.16em">${cls.code}</div>
+        <p style="font-size:11px;color:var(--tx3);margin-top:8px">Connexion directe (élève) ou création de compte</p>
+      </div></div>`;
+  } else {
+    sl.innerHTML=`<div class="stbl"><div class="sth"><span>Nom</span><span>Identifiant</span><span>Action</span></div>${students.filter(Boolean).map(s=>`<div class="str"><span><strong>${s.name}</strong></span><span style="color:var(--tx2);font-size:12px">${s.username||"—"}</span><span><button class="bt sm" onclick="showStudentSubmissions('${s.uid}','${cid}')">Voir rendus</button></span></div>`).join("")}</div>`;
+  }
+  const af=$("afClass"); if(!af.querySelector(`option[value="${cid}"]`)){const o=document.createElement("option");o.value=cid;o.textContent=cls.name;af.appendChild(o);}
+  await renderClassSharedDocs(cid);
+  openMo("moClassDetail");
+};
+
+window.showStudentSubmissions = function(uid, cid) {
+  closeMo("moClassDetail"); switchView("assignments");
+  $("afClass").value = cid; renderSubmissions();
+};
+
+$("copyCode").addEventListener("click",()=>{ navigator.clipboard.writeText($("cdCode").textContent||"").then(()=>toast("✅ Code copié !","s")); });
+
+document.querySelectorAll("[data-ct]").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll("[data-ct]").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".ctab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active"); $("ct-"+t.dataset.ct)?.classList.add("active");
+}));
+
+async function renderClassSharedDocs(cid) {
+  const shares=await DB.getClassShares(cid), el=$("cdDocs");
+  if(!shares.length){el.innerHTML='<p class="empty">Aucun document partagé.</p>';return;}
+  const docs=await Promise.all(shares.map(s=>DB.getDoc(s.docId)));
+  el.innerHTML=shares.map((s,i)=>{const d=docs[i];if(!d)return"";return`<div class="share-row"><span>${ICONS[d.type]||"📄"} <strong>${d.title||d.subject}</strong></span><span style="color:var(--tx2);font-size:12px">${s.graded?"📤 À rendre":"👁 Lecture"}${s.due?" · 📅 "+new Date(s.due).toLocaleDateString("fr-FR"):""}</span></div>`;}).join("");
+}
+
+$("shareDocBtn").addEventListener("click", async ()=>{
+  const docs=await DB.getTeacherDocs(CU.uid);
+  const sel=$("sdSelect"); sel.innerHTML='<option value="">— Sélectionner —</option>'+docs.map(d=>`<option value="${d.id}">${d.title||d.subject} (${LABELS[d.type]||d.type})</option>`).join("");
+  openMo("moShareDoc");
+});
+$("confirmShare").addEventListener("click", async ()=>{
+  const did=$("sdSelect").value, due=$("sdDue").value, graded=$("sdGraded").checked;
+  if(!did){toast("Sélectionnez un document","e");return;}
+  try{
+    await DB.shareDoc({docId:did, classId:_cls.id, teacherId:CU.uid, due:due||null, graded});
+    closeMo("moShareDoc"); toast("✅ Document partagé !","s");
+    await renderClassSharedDocs(_cls.id);
+  } catch(e){toast(e.message,"e");}
+});
+
+window.quickShare = async function(did) {
+  const cls=await DB.getTeacherClasses(CU.uid);
+  if(!cls.length){toast("Créez d'abord une classe","e");return;}
+  _cls=cls[0];
+  const docs=await DB.getTeacherDocs(CU.uid);
+  const sel=$("sdSelect"); sel.innerHTML='<option value="">— Sélectionner —</option>'+docs.map(d=>`<option value="${d.id}"${d.id===did?" selected":""}>${d.title||d.subject}</option>`).join("");
+  openMo("moShareDoc");
+};
+
+// ASSIGNMENTS
+$("afClass").addEventListener("change", renderSubmissions);
+$("afStatus").addEventListener("change", renderSubmissions);
+async function renderSubmissions() {
+  const el=$("subsList"), clf=$("afClass").value, stf=$("afStatus").value;
+  const filters={teacherId:CU.uid}; if(clf) filters.classId=clf;
+  let subs=await DB.getSubmissions(filters);
+  if(stf) subs=subs.filter(s=>s.status===stf);
+  if(!subs.length){el.innerHTML='<p class="empty">Aucun rendu.</p>';return;}
+  el.innerHTML=`<div class="subtbl"><div class="subh"><span>Élève</span><span>Document</span><span>Date</span><span>Auto</span><span>Action</span></div>${subs.map(s=>`<div class="subr ${s.status}"><span><strong>${s.studentName||"—"}</strong></span><span style="font-size:12px">${s.docTitle||"—"}</span><span style="font-size:11px;color:var(--tx2)">${fmtDate(s.at)}</span><span style="font-size:12px">${s.autoScore!==undefined?s.autoScore+"/"+s.autoTotal:"—"}</span><span>${s.status==="pending"?`<button class="bp sm" onclick="openGrade('${s.id}')">✏️ Corriger</button>`:`<span style="color:#4ade80;font-size:13px">✅ ${s.score}/20</span>&nbsp;<button class="bt sm" onclick="openGrade('${s.id}')">Modifier</button>`}</span></div>`).join("")}</div>`;
+}
+
+window.openGrade = async function(sid) {
+  _subId=sid;
+  const allSubs=await DB.getSubmissions({teacherId:CU.uid});
+  const sub=allSubs.find(s=>s.id===sid); if(!sub) return;
+  const doc=sub.docId?await DB.getDoc(sub.docId):null;
+  const gc=$("gradeContent");
+  if(doc&&sub.answers&&Object.keys(sub.answers).length) {
+    gc.innerHTML=`<h4 style="margin-bottom:12px;font-family:'Fraunces',serif">Réponses de ${sub.studentName}</h4>`+(doc.questions||[]).map((q,i)=>`<div style="padding:10px;background:var(--sur2);border-radius:8px;margin-bottom:8px;font-size:13px"><div style="color:var(--tx2);font-size:11px;margin-bottom:4px">Q${i+1}: ${(q.text||"").substring(0,80)}…</div><div><strong>Réponse:</strong> ${sub.answers[i]||"—"}</div><div style="color:var(--acc)"><strong>Corrigé:</strong> ${q.answer||"—"}</div></div>`).join("");
+  } else { gc.innerHTML='<p style="color:var(--tx2)">Pas de réponses détaillées.</p>'; }
+  $("gradeScore").value=sub.score||sub.autoScore||"";
+  $("gradeComment").value=sub.comment||"";
+  openMo("moGrade");
+};
+$("submitGradeBtn").addEventListener("click", async ()=>{
+  const score=parseFloat($("gradeScore").value), comment=($("gradeComment").value||"").trim();
+  if(isNaN(score)||score<0||score>20){toast("Note entre 0 et 20","e");return;}
+  try{ await DB.gradeSubmission(_subId,score,comment); closeMo("moGrade"); toast("✅ Note "+score+"/20 enregistrée !","s"); await Promise.all([renderSubmissions(),refreshStats()]); }
+  catch(e){toast(e.message,"e");}
+});
+
+// ════════════════════════════════════════════════════════
+// STUDENT APP
+// ════════════════════════════════════════════════════════
+let _dvDoc=null, _dvShare=null;
+
+async function initStudent(u) {
+  $("sGreet").textContent  = u.name.split(" ")[0];
+  $("sNameDisp").textContent = u.name;
+  $("sAvatar").textContent  = u.name.charAt(0).toUpperCase();
+  if(u.classId){ const cls=await DB.getClass(u.classId); if(cls){ $("sBadge").textContent=cls.name; $("sClassName").textContent="Classe : "+cls.name+(cls.subject?" · "+cls.subject:""); }}
+  await Promise.all([loadStudentDocs(u), loadStudentTodo(u), loadStudentDone(u)]);
+}
+document.querySelectorAll(".snb").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".snb").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".sv").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active"); $("sv-"+b.dataset.sv)?.classList.add("active");
+}));
+$("sLogoutBtn").addEventListener("click", doLogout);
+
+async function loadStudentDocs(u) {
+  const el=$("sDocs");
+  if(!u.classId){el.innerHTML='<p class="empty">Aucune classe assignée.</p>';return;}
+  try{
+    const shares=await DB.getClassShares(u.classId);
+    if(!shares.length){el.innerHTML='<p class="empty">Votre professeur n\'a pas encore partagé de document.</p>';return;}
+    const docs=await Promise.all(shares.map(s=>DB.getDoc(s.docId)));
+    el.innerHTML=shares.map((s,i)=>{const d=docs[i];if(!d)return"";return`<div class="sdcard" onclick="openStudentDoc('${s.id}','${d.id}')"><span style="font-size:26px">${ICONS[d.type]||"📄"}</span><div style="flex:1"><div class="sdti">${d.title||d.subject||"Document"}</div><div class="sdme">${LABELS[d.type]||d.type}${s.due?" · 📅 "+new Date(s.due).toLocaleDateString("fr-FR"):""}</div></div><span class="sdbg ${s.graded?"graded":"view"}">${s.graded?"📤 À rendre":"👁 Voir"}</span></div>`;}).join("");
+  } catch(e){el.innerHTML='<p class="empty">Erreur: '+e.message+'</p>';}
+}
+async function loadStudentTodo(u) {
+  const el=$("sTodo");
+  if(!u.classId){el.innerHTML='<p class="empty">Aucun devoir.</p>';return;}
+  try{
+    const shares=await DB.getClassShares(u.classId);
+    const graded=shares.filter(s=>s.graded);
+    if(!graded.length){el.innerHTML='<p class="empty">Aucun devoir noté assigné.</p>';return;}
+    const subs=u.isGuest?[]:await DB.getSubmissions({studentId:u.uid});
+    const doneIds=new Set(subs.map(s=>s.shareId));
+    const docs=await Promise.all(graded.map(s=>DB.getDoc(s.docId)));
+    el.innerHTML=graded.map((s,i)=>{const d=docs[i];if(!d)return"";const done=doneIds.has(s.id);return`<div class="acard"><span style="font-size:22px">${ICONS[d.type]||"📄"}</span><div style="flex:1"><div class="ati">${d.title||d.subject}</div><div class="ame">${LABELS[d.type]}${s.due?" · 📅 "+new Date(s.due).toLocaleDateString("fr-FR"):""}</div></div>${done?'<span class="bdone">✅ Rendu</span>':`<button class="bp sm" onclick="openStudentDoc('${s.id}','${d.id}')">Commencer</button>`}</div>`;}).join("");
+  } catch(e){el.innerHTML='<p class="empty">Erreur: '+e.message+'</p>';}
+}
+async function loadStudentDone(u) {
+  const el=$("sDone");
+  if(u.isGuest){el.innerHTML='<p class="empty">Créez un compte pour voir vos rendus.</p>';return;}
+  try{
+    const subs=await DB.getSubmissions({studentId:u.uid});
+    if(!subs.length){el.innerHTML='<p class="empty">Aucun travail rendu.</p>';return;}
+    el.innerHTML=subs.map(s=>`<div class="done-card"><div><div style="font-size:14px;font-weight:600;color:#1a1208">${s.docTitle||"Document"}</div><div style="font-size:12px;color:#8b8270">Rendu le ${fmtDate(s.at)}</div></div><div style="text-align:right">${s.status==="graded"?`<div class="gbadge">${s.score}/20</div>${s.comment?`<div class="gcomm">"${s.comment}"</div>`:""}`:'<span class="pbadge">En attente</span>'}</div></div>`).join("");
+  } catch(e){el.innerHTML='<p class="empty">Erreur: '+e.message+'</p>';}
+}
+
+window.openStudentDoc = async function(shareId, docId) {
+  const doc=await DB.getDoc(docId); if(!doc) return;
+  const shares=CU?.classId?await DB.getClassShares(CU.classId):[];
+  const share=shares.find(s=>s.id===shareId);
+  _dvDoc=doc; _dvShare=share;
+  $("dvTitle").textContent=doc.title||doc.subject||"Document";
+  $("dvContent").innerHTML="<div id='dvAct'></div>";
+  renderDocActivity(doc,"dvAct");
+  const foot=$("dvFoot"), fc=$("dvFootContent");
+  if(share?.graded && CU && !CU.isGuest) {
+    const subs=await DB.getSubmissions({studentId:CU.uid});
+    const already=subs.find(s=>s.shareId===shareId);
+    if(already) {
+      foot.style.display="flex";
+      fc.innerHTML=`<div style="color:var(--tx2);font-size:13px">✅ Travail rendu${already.status==="graded"?" · Note: <strong>"+already.score+"/20</strong>":" · En attente de correction"}</div>`;
+    } else {
+      foot.style.display="flex";
+      fc.innerHTML=`<button class="bp" onclick="submitWork()">📤 Rendre mon travail</button>`;
+    }
+  } else { foot.style.display="none"; }
+  openMo("moDocView");
+};
+
+window.submitWork = async function() {
+  if(!_dvDoc||!_dvShare||!CU) return;
+  const answers=collectAnswers(_dvDoc);
+  const {score,total}=autoGrade(_dvDoc,answers);
+  try{
+    await DB.submitWork({shareId:_dvShare.id, docId:_dvDoc.id, docTitle:_dvDoc.title||_dvDoc.subject, docType:_dvDoc.type, studentId:CU.uid, studentName:CU.name, classId:CU.classId, teacherId:_dvShare.teacherId||_dvDoc.teacherId, answers, autoScore:score, autoTotal:total});
+    closeMo("moDocView"); toast("📤 Travail rendu !","s");
+    await Promise.all([loadStudentTodo(CU), loadStudentDone(CU)]);
+  } catch(e){toast(e.message,"e");}
+};
+
+// ════════════════════════════════════════════════════════
+// ACTIVITIES ENGINE
+// ════════════════════════════════════════════════════════
+const THEMES={
+  dark:{bg:"linear-gradient(135deg,#0f172a,#1e293b)",color:"#f1f5f9",accent:"#f59e0b",sub:"#94a3b8"},
+  light:{bg:"linear-gradient(135deg,#fefce8,#fdf4dc)",color:"#1a1208",accent:"#d97706",sub:"#78716c"},
+  nature:{bg:"linear-gradient(135deg,#052e16,#14532d)",color:"#f0fdf4",accent:"#4ade80",sub:"#86efac"},
+  ocean:{bg:"linear-gradient(135deg,#0c1445,#1e3a8a)",color:"#eff6ff",accent:"#38bdf8",sub:"#bae6fd"},
+};
+let _slides=[], _slideIdx=0, _slideTheme="dark";
+
+function slideCardHTML(s,i,total,theme) {
+  const t=THEMES[theme]||THEMES.dark;
+  return `<div style="background:${t.bg};color:${t.color};display:flex;flex-direction:column;min-height:300px;border-radius:14px;padding:28px 36px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;border-radius:50%;background:${t.accent};opacity:.06"></div>
+    <div style="font-size:26px;margin-bottom:8px">${s.emoji||"📖"}</div>
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:${t.sub};margin-bottom:6px;font-weight:600">${s.badge||""}</div>
+    <h2 style="font-family:'Fraunces',serif;font-size:clamp(16px,2.5vw,24px);font-weight:700;margin-bottom:14px;color:${t.accent};line-height:1.2">${s.title}</h2>
+    <div style="font-size:13px;line-height:1.85;flex:1">${s.content}</div>
+    ${s.image?`<img src="${s.image}" style="max-height:140px;object-fit:contain;border-radius:8px;margin-top:12px;align-self:center"/>`:""}
+    <div style="position:absolute;bottom:10px;right:14px;font-size:10px;opacity:.4">${i+1}/${total}</div>
+  </div>`;
+}
+
+function showCurrentSlide(cid) {
+  const c=$(cid); if(!c||!_slides.length) return;
+  c.innerHTML=slideCardHTML(_slides[_slideIdx],_slideIdx,_slides.length,_slideTheme);
+  const ct=$("_sct"); if(ct) ct.textContent=(_slideIdx+1)+"/"+_slides.length;
+}
+
+function renderDocActivity(doc, cid) {
+  const c=$(cid); if(!c) return; c.innerHTML="";
+  switch(doc.type) {
+    case "slides":
+      _slides=doc.slides||[]; _slideIdx=0; _slideTheme=doc.theme||"dark";
+      c.innerHTML=`<div id="_sst" style="min-height:280px"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:14px;justify-content:center">
+          <button class="bt" onclick="_sNav(-1)">◀</button>
+          <span id="_sct" style="color:var(--tx2);font-size:13px">1/${_slides.length}</span>
+          <button class="bt" onclick="_sNav(1)">▶</button>
+          <button class="bt" onclick="_sFullscreen()">⛶ Plein écran</button>
+        </div>`;
+      showCurrentSlide("_sst"); break;
+    case "exercise": case "evaluation": c.innerHTML=renderExHTML(doc); break;
+    case "crossword": c.innerHTML="<div id='_cwc'></div>"; if(doc.grid&&doc.words) renderCW(doc.grid,doc.words,doc.size,"_cwc"); break;
+    case "wordsearch": c.innerHTML="<div id='_wsc'></div>"; if(doc.grid&&doc.placements) renderWS({grid:doc.grid,placements:doc.placements,size:doc.size},"_wsc"); break;
+    case "matching":  c.innerHTML="<div id='_mtc'></div>"; if(doc.pairs) renderMT(doc.pairs,"_mtc"); break;
+    default: c.innerHTML='<p style="color:var(--tx2);padding:20px">Aperçu non disponible.</p>';
+  }
+}
+
+window._sNav = function(d) { _slideIdx=Math.max(0,Math.min(_slides.length-1,_slideIdx+d)); showCurrentSlide("_sst"); };
+window._sFullscreen = function() {
+  const ov=document.createElement("div");
+  ov.id="_fsOv"; ov.style.cssText="position:fixed;inset:0;background:#000;z-index:950;display:flex;flex-direction:column";
+  const rebuild=()=>{
+    const s=_slides[_slideIdx], t=THEMES[_slideTheme]||THEMES.dark;
+    ov.innerHTML=`<div style="display:flex;align-items:center;gap:14px;padding:14px 24px;background:rgba(255,255,255,.05)">
+      <button onclick="_fsPrev()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:16px">◀</button>
+      <span style="color:rgba(255,255,255,.5);flex:1;text-align:center">${_slideIdx+1}/${_slides.length}</span>
+      <button onclick="_fsNext()" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:8px 18px;border-radius:8px;cursor:pointer;font-size:16px">▶</button>
+      <button onclick="document.getElementById('_fsOv').remove();document.removeEventListener('keydown',_fsKey)" style="background:rgba(220,50,50,.3);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer">✕ Fermer</button>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px">
+      <div style="background:${t.bg};color:${t.color};display:flex;flex-direction:column;width:100%;max-width:900px;min-height:460px;border-radius:18px;padding:48px 60px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:-20px;right:-20px;width:160px;height:160px;border-radius:50%;background:${t.accent};opacity:.06"></div>
+        <div style="font-size:32px;margin-bottom:12px">${s.emoji||"📖"}</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:${t.sub};margin-bottom:8px;font-weight:600">${s.badge||""}</div>
+        <h2 style="font-family:'Fraunces',serif;font-size:30px;font-weight:700;margin-bottom:20px;color:${t.accent}">${s.title}</h2>
+        <div style="font-size:16px;line-height:1.9;flex:1">${s.content}</div>
+        ${s.image?`<img src="${s.image}" style="max-height:200px;object-fit:contain;border-radius:12px;margin-top:16px;align-self:center"/>`:""}
+        <div style="position:absolute;bottom:14px;right:22px;font-size:12px;opacity:.4">${_slideIdx+1}/${_slides.length}</div>
+      </div>
+    </div>`;
+  };
+  window._fsPrev=()=>{_slideIdx=Math.max(0,_slideIdx-1);rebuild();};
+  window._fsNext=()=>{_slideIdx=Math.min(_slides.length-1,_slideIdx+1);rebuild();};
+  window._fsKey=e=>{if(e.key==="ArrowRight")_fsNext();else if(e.key==="ArrowLeft")_fsPrev();else if(e.key==="Escape"){ov.remove();document.removeEventListener("keydown",_fsKey);}};
+  document.addEventListener("keydown",_fsKey); rebuild(); document.body.appendChild(ov);
+};
+
+function renderExHTML(data) {
+  const qs=data.questions||[];
+  return `<div><h2 style="font-family:'Fraunces',serif;font-size:18px;margin-bottom:4px;color:var(--acc)">${data.title||""}</h2>
+    <p style="font-size:12px;color:var(--tx2);margin-bottom:16px">${qs.length} questions · ${qs.reduce((a,q)=>a+(q.points||1),0)} pts</p>
+    ${qs.map((q,i)=>`<div class="exq" data-idx="${i}" style="background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--acc);font-weight:600;margin-bottom:6px;text-transform:uppercase">Q${i+1} · ${q.points||1} pt(s)</div>
+      <p style="margin-bottom:10px;font-size:14px">${q.text}</p>
+      ${q.type==="qcm"?`<div style="display:flex;flex-direction:column;gap:6px">${(q.choices||[]).map(ch=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:7px 10px;border-radius:6px;border:1px solid var(--bor);transition:border-color .2s"><input type="radio" name="q${i}" value="${ch.charAt(0)}" style="accent-color:var(--acc)"/> ${ch}</label>`).join("")}</div>`:""}
+      ${q.type==="vf"?`<div style="display:flex;gap:14px;margin-top:4px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px"><input type="radio" name="q${i}" value="Vrai" style="accent-color:var(--acc)"/> Vrai</label><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px"><input type="radio" name="q${i}" value="Faux" style="accent-color:var(--acc)"/> Faux</label></div>`:""}
+      ${q.type==="gaps"?`<div style="font-size:14px;line-height:2.6">${q.text.replace(/_+/g,'<input type="text" style="border:none;border-bottom:2px solid var(--acc);background:transparent;color:var(--tx);width:90px;outline:none;font-size:14px;text-align:center;"/>')}</div>`:""}
+      ${(q.type==="open"||q.type==="calc")?`<textarea style="width:100%;background:var(--sur);border:1px solid var(--bor);border-radius:6px;color:var(--tx);padding:8px;font-size:13px;resize:vertical;margin-top:6px" rows="3" placeholder="Votre réponse…"></textarea>`:""}
+    </div>`).join("")}</div>`;
+}
+
+function collectAnswers(doc) {
+  const a={};
+  (doc.questions||[]).forEach((q,i)=>{
+    if(q.type==="qcm"||q.type==="vf"){const r=document.querySelector(`input[name="q${i}"]:checked`);a[i]=r?.value||"";}
+    else{const ta=document.querySelector(`.exq[data-idx="${i}"] textarea`);const ins=document.querySelectorAll(`.exq[data-idx="${i}"] input[type="text"]`);a[i]=ta?ta.value:Array.from(ins).map(x=>x.value).join("|");}
+  }); return a;
+}
+function autoGrade(doc,answers){
+  let score=0,total=0;
+  (doc.questions||[]).forEach((q,i)=>{const pts=q.points||1;total+=pts;if(q.type==="qcm"||q.type==="vf"){if((answers[i]||"").toLowerCase().startsWith((q.answer||"").toLowerCase().charAt(0)))score+=pts;}});
+  return{score,total};
+}
+
+// MOTS CROISÉS
+function buildCrossword(words,size){
+  const grid=Array.from({length:size},()=>Array(size).fill(null)),placed=[];
+  const can=(word,row,col,h)=>{
+    for(let i=0;i<word.length;i++){const r=h?row:row+i,c=h?col+i:col;if(r<0||r>=size||c<0||c>=size)return false;const cell=grid[r][c];if(cell&&cell.letter!==word[i])return false;if(!cell){if(h){if(r>0&&grid[r-1][c]&&!placed.some(p=>!p.h&&p.c===c&&p.r<=r&&p.r+p.word.length>r))return false;if(r<size-1&&grid[r+1][c]&&!placed.some(p=>!p.h&&p.c===c&&p.r<=r&&p.r+p.word.length>r))return false;}else{if(c>0&&grid[r][c-1]&&!placed.some(p=>p.h&&p.r===r&&p.c<=c&&p.c+p.word.length>c))return false;if(c<size-1&&grid[r][c+1]&&!placed.some(p=>p.h&&p.r===r&&p.c<=c&&p.c+p.word.length>c))return false;}}}
+    if(h){if(col>0&&grid[row][col-1])return false;if(col+word.length<size&&grid[row][col+word.length])return false;}
+    else{if(row>0&&grid[row-1]?.[col])return false;if(row+word.length<size&&grid[row+word.length]?.[col])return false;}
+    return true;
+  };
+  const place=(word,r,c,h,n)=>{for(let i=0;i<word.length;i++){const rr=h?r:r+i,cc=h?c+i:c;grid[rr][cc]={letter:word[i],num:i===0?n:null};}placed.push({word,r,c,h,num:n});};
+  const sorted=[...words].sort((a,b)=>b.word.length-a.word.length);
+  place(sorted[0].word,Math.floor(size/2),Math.floor((size-sorted[0].word.length)/2),true,1);
+  let n=2;
+  for(let wi=1;wi<sorted.length;wi++){
+    const{word}=sorted[wi];let best=-1,bR=0,bC=0,bH=true;
+    for(const p of placed){for(let li=0;li<word.length;li++){const lt=word[li];for(let pi=0;pi<p.word.length;pi++){if(p.word[pi]!==lt)continue;const r=p.h?p.r-li:p.r+pi,c=p.h?p.c+pi:p.c-li,h=!p.h;if(can(word,r,c,h)){const sc=li+(p.word.length-pi);if(sc>best){best=sc;bR=r;bC=c;bH=h;}}}}}
+    if(best>=0)place(word,bR,bC,bH,n++);
+    else{for(let a=0;a<80;a++){const h=Math.random()>.5,r=Math.floor(Math.random()*(size-(h?1:word.length))),c=Math.floor(Math.random()*(size-(h?word.length:1)));if(can(word,r,c,h)){place(word,r,c,h,n++);break;}}}
+  }
+  return{grid,placed};
+}
+function renderCW(gd,words,size,cid){
+  const{grid,placed}=gd,wmap={};words.forEach(w=>wmap[w.word]=w.clue);
+  const clH=placed.filter(p=>p.h).sort((a,b)=>a.num-b.num),clV=placed.filter(p=>!p.h).sort((a,b)=>a.num-b.num);
+  const cs=Math.min(30,Math.floor(360/size));
+  const el=$(cid);if(!el)return;
+  el.innerHTML=`<div style="display:flex;gap:18px;flex-wrap:wrap;padding:10px;overflow-y:auto;max-height:520px">
+    <div style="overflow-x:auto"><div style="display:flex;gap:8px;margin-bottom:10px"><button class="bt" onclick="_cwChk('${cid}')">✅ Vérifier</button><button class="bt" onclick="_cwRev('${cid}')">💡 Révéler</button></div>
+      <div style="display:inline-grid;grid-template-columns:repeat(${size},${cs}px);gap:2px;background:var(--bor);border:2px solid var(--bor);border-radius:8px;padding:2px">
+        ${Array.from({length:size},(_,r)=>Array.from({length:size},(_,c)=>{const cell=grid[r][c];if(!cell)return`<div style="width:${cs}px;height:${cs}px;background:var(--bg)"></div>`;return`<div style="width:${cs}px;height:${cs}px;background:var(--sur);position:relative;display:flex;align-items:center;justify-content:center">${cell.num?`<span style="position:absolute;top:1px;left:2px;font-size:7px;font-weight:700;color:var(--acc);line-height:1">${cell.num}</span>`:""}<input type="text" maxlength="1" data-ans="${cell.letter}" style="width:100%;height:100%;border:none;background:transparent;text-align:center;font-size:${Math.max(9,cs-8)}px;font-weight:700;color:var(--tx);text-transform:uppercase;outline:none" oninput="this.value=this.value.toUpperCase()"/></div>`;}).join("")).join("")}
+      </div>
+    </div>
+    <div style="flex:1;min-width:150px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;max-height:520px">
+      <div><h4 style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--acc)">→ Horizontal</h4>${clH.map(p=>`<div style="font-size:12px;margin-bottom:4px;padding:3px 0;border-bottom:1px solid var(--bor)"><strong>${p.num}.</strong> ${wmap[p.word]||p.word}</div>`).join("")}</div>
+      <div><h4 style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--acc)">↓ Vertical</h4>${clV.map(p=>`<div style="font-size:12px;margin-bottom:4px;padding:3px 0;border-bottom:1px solid var(--bor)"><strong>${p.num}.</strong> ${wmap[p.word]||p.word}</div>`).join("")}</div>
+    </div></div>`;
+}
+window._cwChk=function(cid){const ins=$(cid)?.querySelectorAll("input[data-ans]");let ok=0,tot=0;ins?.forEach(i=>{tot++;if(i.value.toUpperCase()===i.dataset.ans){i.style.color="#4ade80";ok++;}else if(i.value)i.style.color="#f87171";});toast("✅ "+ok+"/"+tot+" lettres correctes !",ok===tot?"s":"i");};
+window._cwRev=function(cid){$(cid)?.querySelectorAll("input[data-ans]").forEach(i=>{i.value=i.dataset.ans;i.style.color="#94a3b8";});toast("Grille révélée","i");};
+
+// MOTS MÊLÉS
+function buildWS(words,size){
+  const grid=Array.from({length:size},()=>Array(size).fill("")),placements=[],DIRS=[[0,1],[1,0],[0,-1],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]],L="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for(const word of words){let placed=false;for(let a=0;a<150&&!placed;a++){const[dr,dc]=DIRS[Math.floor(Math.random()*8)],rs=Math.floor(Math.random()*size),cs=Math.floor(Math.random()*size);const cells=[];let ok=true;for(let i=0;i<word.length;i++){const r=rs+dr*i,c=cs+dc*i;if(r<0||r>=size||c<0||c>=size){ok=false;break;}if(grid[r][c]&&grid[r][c]!==word[i]){ok=false;break;}cells.push([r,c]);}if(ok){cells.forEach(([r,c],i)=>grid[r][c]=word[i]);placements.push({word,cells});placed=true;}}}
+  for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(!grid[r][c])grid[r][c]=L[Math.floor(Math.random()*26)];
+  return{grid,placements,size};
+}
+function renderWS(data,cid){
+  const{grid,placements,size}=data,cs=Math.min(26,Math.floor(350/size)),found=new Set();let sel=false,sc=null,hov=[];
+  const el=$(cid);if(!el)return;
+  el.innerHTML=`<div style="display:flex;gap:14px;flex-wrap:wrap;padding:10px;overflow-y:auto;max-height:540px">
+    <div><div id="_wsg_${cid}" style="display:inline-grid;grid-template-columns:repeat(${size},${cs}px);gap:1px;background:var(--bor);border:2px solid var(--bor);border-radius:8px;padding:2px;user-select:none">${grid.map((row,r)=>row.map((lt,c)=>`<div class="wsc" data-r="${r}" data-c="${c}" style="width:${cs}px;height:${cs}px;background:var(--sur);display:flex;align-items:center;justify-content:center;font-size:${Math.max(9,cs-6)}px;font-weight:700;cursor:pointer;border-radius:2px;color:var(--tx);transition:background .1s">${lt}</div>`).join("")).join("")}</div>
+      <div id="_wsfc_${cid}" style="margin-top:8px;font-size:13px;color:var(--tx2);text-align:center">0/${placements.length} mots trouvés</div></div>
+    <div style="flex:1;min-width:120px"><h4 style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--acc)">Mots :</h4>${placements.map(p=>`<div id="_wsw_${cid}_${p.word}" style="font-size:13px;margin-bottom:5px;padding:3px 8px;border-radius:4px;border:1px solid var(--bor)">${p.word}</div>`).join("")}</div>
+  </div>`;
+  const wsg=$("_wsg_"+cid);
+  const gc=t=>{const w=t?.closest?.(".wsc");return w?{r:+w.dataset.r,c:+w.dataset.c,el:w}:null;};
+  const hl=(s,e)=>{hov.forEach(x=>{if(!x.dataset.found)x.style.background="var(--sur)";});hov=[];if(!s||!e)return;const dr=Math.sign(e.r-s.r),dc=Math.sign(e.c-s.c);let r=s.r,c=s.c;while(true){const x=wsg.querySelector(`[data-r="${r}"][data-c="${c}"]`);if(x){x.style.background="rgba(232,168,56,.3)";hov.push(x);}if(r===e.r&&c===e.c)break;r+=dr;c+=dc;if(hov.length>size)break;}};
+  const chk=(s,e)=>{if(!s||!e)return;const dr=Math.sign(e.r-s.r),dc=Math.sign(e.c-s.c);let w="",cells=[],r=s.r,c=s.c;while(true){const x=wsg.querySelector(`[data-r="${r}"][data-c="${c}"]`);w+=x?.textContent.trim()||"";cells.push(x);if(r===e.r&&c===e.c)break;r+=dr;c+=dc;if(cells.length>size)break;}const rev=w.split("").reverse().join("");const m=placements.find(p=>!found.has(p.word)&&(p.word===w||p.word===rev));if(m){found.add(m.word);cells.forEach(x=>{if(x){x.style.background="#4ade8040";x.dataset.found="1";x.style.color="#4ade80";}});const wl=$("_wsw_"+cid+"_"+m.word);if(wl){wl.style.textDecoration="line-through";wl.style.color="#4ade80";}$("_wsfc_"+cid).textContent=found.size+"/"+placements.length+" mots trouvés";if(found.size===placements.length)toast("🎉 Bravo ! Tous les mots trouvés !","s");else toast("✅ \""+m.word+"\" trouvé !","s");}else{hov.forEach(x=>{if(!x?.dataset?.found)x.style.background="var(--sur)";});}hov=[];};
+  wsg.addEventListener("mousedown",e=>{const c=gc(e.target);if(c){sel=true;sc=c;}});
+  wsg.addEventListener("mousemove",e=>{if(!sel)return;const c=gc(e.target);if(c)hl(sc,c);});
+  wsg.addEventListener("mouseup",e=>{if(!sel)return;sel=false;chk(sc,gc(e.target));});
+  wsg.addEventListener("touchstart",e=>{const t=e.touches[0],c=gc(document.elementFromPoint(t.clientX,t.clientY));if(c){sel=true;sc=c;}},{passive:true});
+  wsg.addEventListener("touchmove",e=>{const t=e.touches[0],c=gc(document.elementFromPoint(t.clientX,t.clientY));if(c&&sel)hl(sc,c);},{passive:true});
+  wsg.addEventListener("touchend",e=>{if(!sel)return;sel=false;const t=e.changedTouches[0];chk(sc,gc(document.elementFromPoint(t.clientX,t.clientY)));},{passive:true});
+}
+
+// RELIER
+let _mtState=null;
+function renderMT(pairs,cid){
+  const sh=[...pairs].sort(()=>Math.random()-.5);
+  _mtState={pairs,matched:new Set(),sel:null};
+  const el=$(cid);if(!el)return;
+  el.innerHTML=`<div style="padding:12px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div style="display:flex;flex-direction:column;gap:8px">${pairs.map((p,i)=>`<div class="mti" data-idx="${i}" data-s="L" onclick="_mtC(this)" style="padding:10px 14px;background:var(--sur2);border:2px solid var(--bor);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s">${p.left}</div>`).join("")}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${sh.map(p=>`<div class="mti" data-idx="${pairs.indexOf(p)}" data-s="R" onclick="_mtC(this)" style="padding:10px 14px;background:var(--sur2);border:2px solid var(--bor);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s">${p.right}</div>`).join("")}</div>
+  </div></div>`;
+}
+window._mtC=function(el){
+  const mt=_mtState;if(!mt)return;
+  const idx=+el.dataset.idx,s=el.dataset.s;
+  if(mt.matched.has(idx))return;
+  if(!mt.sel){mt.sel={el,idx,s};el.style.borderColor="var(--acc)";el.style.background="rgba(232,168,56,.1)";}
+  else{
+    if(mt.sel.s===s){mt.sel.el.style.borderColor="var(--bor)";mt.sel.el.style.background="var(--sur2)";mt.sel={el,idx,s};el.style.borderColor="var(--acc)";el.style.background="rgba(232,168,56,.1)";return;}
+    const li=s==="R"?mt.sel.idx:idx;
+    if(li===(s==="R"?idx:mt.sel.idx)){[el,mt.sel.el].forEach(e=>{e.style.borderColor="#4ade80";e.style.background="rgba(74,222,128,.1)";e.style.cursor="default";});mt.matched.add(li);if(mt.matched.size===mt.pairs.length)toast("🎉 Tout relié !","s");else toast("✅ Bonne association !","s");}
+    else{[el,mt.sel.el].forEach(e=>{e.style.borderColor="#f87171";setTimeout(()=>{e.style.borderColor="var(--bor)";e.style.background="var(--sur2)";},700);});toast("❌ Mauvaise association","e");}
+    mt.sel=null;
+  }
+};
+
+// ════════════════════════════════════════════════════════
+// CREATORS
+// ════════════════════════════════════════════════════════
+const CREATORS = {
+  currentData: null,
+  show(type) {
+    const labs={slides:"Créer un Diaporama",exercise:"Créer un Exercice",crossword:"Créer des Mots Croisés",wordsearch:"Créer des Mots Mêlés",matching:"Créer un Exercice Relier",evaluation:"Créer une Évaluation"};
+    $("createTitle").textContent=labs[type]||"Créer"; $("createSub").textContent="";
+    $("createContainer").innerHTML=this.forms[type]?this.forms[type]():"<p>Type inconnu</p>";
+    this.bind(type);
+  },
+  async callGroq(sys,usr,json=false) {
+    const cfg=EDUFLOW_CONFIG,key=cfg.GROQ_API_KEY;
+    if(!key||key.startsWith("YOUR"))throw new Error("Clé Groq manquante dans config.js");
+    const r=await fetch(cfg.GROQ_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+key},body:JSON.stringify({model:cfg.GROQ_MODEL,max_tokens:4096,temperature:.7,messages:[{role:"system",content:sys},{role:"user",content:usr}]})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||"Erreur "+r.status);}
+    const d=await r.json();const txt=d.choices?.[0]?.message?.content||"";
+    if(json)return JSON.parse(txt.replace(/```json|```/g,"").trim());
+    return txt;
+  },
+  async saveDoc() {
+    if(!this.currentData){toast("Rien à sauvegarder","e");return;}
+    try{const saved=await DB.saveDoc({...this.currentData,teacherId:CU.uid,teacherName:CU.name});toast("✅ Sauvegardé dans la bibliothèque !","s");await Promise.all([refreshStats(),renderRecentDocs()]);}
+    catch(e){toast(e.message,"e");}
+  },
+  forms: {
+    slides:()=>`<div class="clayout"><div class="fpanel">
+      <div class="fg"><label>Sujet</label><input type="text" id="sSubj" placeholder="Ex: La photosynthèse" class="fi"/></div>
+      <div class="fg"><label>Niveau</label><select id="sLvl" class="fi"><option>Primaire</option><option>Collège</option><option selected>Lycée</option><option>Supérieur</option></select></div>
+      <div class="fg"><label>Slides : <strong id="sNL">6</strong></label><input type="range" id="sN" min="3" max="20" value="6" class="range"/></div>
+      <div class="fg"><label>Thème</label><div class="trow"><button class="tbtn active" data-th="dark">🌑 Sombre</button><button class="tbtn" data-th="light">☀️ Clair</button><button class="tbtn" data-th="nature">🌿 Nature</button><button class="tbtn" data-th="ocean">🌊 Océan</button></div></div>
+      <div class="fg"><label>Points clés (optionnel)</label><textarea id="sKP" class="fi" rows="3" placeholder="Un point par ligne…"></textarea></div>
+      <div class="fg"><label>Titre du document</label><input type="text" id="sT" placeholder="Mon diaporama" class="fi"/></div>
+      <button class="bp wf" id="genS">✨ Générer avec l'IA</button>
+    </div><div class="ppanel">
+      <div class="ptb"><span class="plbl">Aperçu diaporama</span><div class="pact">
+        <button class="bt" id="sPr" disabled>◀</button><span id="_sct" style="font-size:12px;color:var(--tx2)">0/0</span><button class="bt" id="sNx" disabled>▶</button>
+        <button class="bt" id="sImg" disabled>🖼 Image</button><button class="bt" id="sFul" disabled>⛶</button>
+        <button class="bp sm" id="sSv" disabled>💾 Sauvegarder</button>
+      </div></div>
+      <div class="sstage" id="_sst"><div class="pph">🖥 Générez un diaporama pour le voir ici</div></div>
+    </div></div><input type="file" id="imgUp" accept="image/*" style="display:none"/>`,
+    exercise:()=>`<div class="clayout"><div class="fpanel">
+      <div class="fg"><label>Sujet ou texte source</label><textarea id="exSubj" class="fi" rows="4" placeholder="Collez le texte ou décrivez le sujet…"></textarea></div>
+      <div class="fg"><label>Types de questions</label><div class="ckg"><label class="ckl"><input type="checkbox" id="exGaps" checked/>Texte à trous</label><label class="ckl"><input type="checkbox" id="exQcm"/>QCM</label><label class="ckl"><input type="checkbox" id="exVf"/>Vrai/Faux</label><label class="ckl"><input type="checkbox" id="exOpen"/>Questions ouvertes</label></div></div>
+      <div class="fg"><label>Niveau</label><select id="exLvl" class="fi"><option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option><option selected>Seconde</option><option>Première</option><option>Terminale</option></select></div>
+      <div class="fg"><label>Questions : <strong id="exNL">8</strong></label><input type="range" id="exN" min="3" max="20" value="8" class="range"/></div>
+      <div class="fg"><label>Titre du document</label><input type="text" id="exT" placeholder="Mon exercice" class="fi"/></div>
+      <button class="bp wf" id="genEx">✨ Générer avec l'IA</button>
+    </div><div class="ppanel">
+      <div class="ptb"><span class="plbl">Aperçu exercice</span><div class="pact"><button class="bp sm" id="exSv" disabled>💾 Sauvegarder</button></div></div>
+      <div class="pcont" id="exPr"><div class="pph">✏️ Générez pour voir l'aperçu</div></div>
+    </div></div>`,
+    crossword:()=>`<div class="clayout"><div class="fpanel">
+      <div class="fg"><label>Thème / Sujet</label><input type="text" id="cwTh" placeholder="Ex: Les capitales d'Europe" class="fi"/></div>
+      <div class="fg"><label>Mots et définitions <span class="fhint">(MOT : Définition)</span></label><textarea id="cwW" class="fi" rows="8" placeholder="PARIS : Capitale de la France&#10;BERLIN : Capitale de l'Allemagne&#10;MADRID : Capitale de l'Espagne"></textarea></div>
+      <button class="bg wf" id="cwGenW">✨ Générer les mots avec l'IA</button>
+      <div class="fg"><label>Taille</label><select id="cwSz" class="fi"><option value="10">Petite 10×10</option><option value="13" selected>Moyenne 13×13</option><option value="15">Grande 15×15</option></select></div>
+      <div class="fg"><label>Titre</label><input type="text" id="cwT" placeholder="Mots croisés" class="fi"/></div>
+      <button class="bp wf" id="genCw">🔤 Générer la grille</button>
+    </div><div class="ppanel">
+      <div class="ptb"><span class="plbl">Grille de mots croisés</span><div class="pact"><button class="bp sm" id="cwSv" disabled>💾 Sauvegarder</button></div></div>
+      <div id="cwPr" style="flex:1;overflow:auto"><div class="pph">🔤 Générez la grille pour la voir ici</div></div>
+    </div></div>`,
+    wordsearch:()=>`<div class="clayout"><div class="fpanel">
+      <div class="fg"><label>Thème</label><input type="text" id="wsTh" placeholder="Ex: Les animaux de la forêt" class="fi"/></div>
+      <div class="fg"><label>Mots <span class="fhint">(un par ligne, en majuscules)</span></label><textarea id="wsW" class="fi" rows="7" placeholder="RENARD&#10;LOUP&#10;CERF&#10;SANGLIER&#10;ECUREUIL"></textarea></div>
+      <button class="bg wf" id="wsGenW">✨ Générer avec l'IA</button>
+      <div class="fg"><label>Taille de la grille</label><select id="wsSz" class="fi"><option value="12">12×12</option><option value="15" selected>15×15</option><option value="18">18×18</option></select></div>
+      <div class="fg"><label>Titre</label><input type="text" id="wsT" placeholder="Mots mêlés" class="fi"/></div>
+      <button class="bp wf" id="genWs">🔍 Générer la grille</button>
+    </div><div class="ppanel">
+      <div class="ptb"><span class="plbl">Grille de mots mêlés</span><div class="pact"><button class="bp sm" id="wsSv" disabled>💾 Sauvegarder</button></div></div>
+      <div id="wsPr" style="flex:1;overflow:auto"><div class="pph">🔍 Générez pour voir la grille ici</div></div>
+    </div></div>`,
+    matching:()=>`<div class="clayout"><div class="fpanel">
+      <div class="fg"><label>Sujet</label><input type="text" id="mtSubj" placeholder="Ex: Pays et leurs capitales" class="fi"/></div>
+      <div class="fg"><label>Paires à relier <span class="fhint">(Gauche → Droite)</span></label><textarea id="mtP" class="fi" rows="8" placeholder="France → Paris&#10;Allemagne → Berlin&#10;Espagne → Madrid&#10;Italie → Rome"></textarea></div>
+      <button class="bg wf" id="mtGenP">✨ Générer avec l'IA</button>
+      <div class="fg"><label>Titre</label><input type="text" id="mtT" placeholder="Exercice relier" class="fi"/></div>
+      <button class="bp wf" id="genMt">🔗 Créer l'exercice</button>
+    </div><div class="ppanel">
+      <div class="ptb"><span class="plbl">Exercice relier</span><div class="pact"><button class="bp sm" id="mtSv" disabled>💾 Sauvegarder</button></div></div>
+      <div id="mtPr" style="flex:1;overflow:auto"><div class="pph">🔗 Créez l'exercice pour le voir ici</div></div>
+    </div></div>`,
+    evaluation:()=>`<div class="clayout"><div class="fpanel">
+      <div class="fg"><label>Matière / Sujet</label><input type="text" id="evSubj" placeholder="Ex: Mathématiques — Fractions" class="fi"/></div>
+      <div class="fg"><label>Niveau</label><select id="evLvl" class="fi"><option>6ème</option><option>5ème</option><option>4ème</option><option>3ème</option><option selected>Seconde</option><option>Première</option><option>Terminale</option></select></div>
+      <div class="fg"><label>Types de questions</label><div class="ckg"><label class="ckl"><input type="checkbox" id="evQcm" checked/>QCM</label><label class="ckl"><input type="checkbox" id="evVf"/>Vrai/Faux</label><label class="ckl"><input type="checkbox" id="evOpen"/>Questions ouvertes</label><label class="ckl"><input type="checkbox" id="evCalc"/>Calculs</label></div></div>
+      <div class="fg"><label>Nombre de questions : <strong id="evNL">10</strong></label><input type="range" id="evN" min="5" max="30" value="10" class="range"/></div>
+      <div class="fg"><label>Durée</label><select id="evDur" class="fi"><option>20 min</option><option>30 min</option><option selected>45 min</option><option>1h</option><option>2h</option></select></div>
+      <div class="fg"><label>Titre</label><input type="text" id="evT" placeholder="Évaluation" class="fi"/></div>
+      <button class="bp wf" id="genEv">✨ Générer avec l'IA</button>
+    </div><div class="ppanel">
+      <div class="ptb"><span class="plbl">Aperçu évaluation</span><div class="pact"><button class="bp sm" id="evSv" disabled>💾 Sauvegarder</button></div></div>
+      <div class="pcont" id="evPr"><div class="pph">📝 Générez pour voir l'aperçu</div></div>
+    </div></div>`,
+  },
+  bind(type) {
+    const sl=(id,lbl)=>{const e=$(id),l=$(lbl);if(e&&l)e.addEventListener("input",()=>l.textContent=e.value);};
+    if(type==="slides"){
+      sl("sN","sNL");
+      document.querySelectorAll(".tbtn").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".tbtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");}));
+      $("genS")?.addEventListener("click",()=>this.genSlides());
+      $("sPr")?.addEventListener("click",()=>{_slideIdx=Math.max(0,_slideIdx-1);showCurrentSlide("_sst");});
+      $("sNx")?.addEventListener("click",()=>{_slideIdx=Math.min(_slides.length-1,_slideIdx+1);showCurrentSlide("_sst");});
+      $("sFul")?.addEventListener("click",window._sFullscreen);
+      $("sImg")?.addEventListener("click",()=>$("imgUp")?.click());
+      $("imgUp")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=ev=>{if(_slides[_slideIdx]){_slides[_slideIdx].image=ev.target.result;if(this.currentData)this.currentData.slides=[..._slides];showCurrentSlide("_sst");toast("✅ Image ajoutée !","s");}};r.readAsDataURL(f);e.target.value="";});
+      $("sSv")?.addEventListener("click",()=>this.saveDoc());
+    }
+    if(type==="exercise"){sl("exN","exNL");$("genEx")?.addEventListener("click",()=>this.genEx());$("exSv")?.addEventListener("click",()=>this.saveDoc());}
+    if(type==="crossword"){$("cwGenW")?.addEventListener("click",()=>this.cwGenWords());$("genCw")?.addEventListener("click",()=>this.genCw());$("cwSv")?.addEventListener("click",()=>this.saveDoc());}
+    if(type==="wordsearch"){$("wsGenW")?.addEventListener("click",()=>this.wsGenWords());$("genWs")?.addEventListener("click",()=>this.genWs());$("wsSv")?.addEventListener("click",()=>this.saveDoc());}
+    if(type==="matching"){$("mtGenP")?.addEventListener("click",()=>this.mtGenPairs());$("genMt")?.addEventListener("click",()=>this.genMt());$("mtSv")?.addEventListener("click",()=>this.saveDoc());}
+    if(type==="evaluation"){sl("evN","evNL");$("genEv")?.addEventListener("click",()=>this.genEv());$("evSv")?.addEventListener("click",()=>this.saveDoc());}
+  },
+  async genSlides(){
+    const subj=$("sSubj")?.value.trim();if(!subj){toast("Entrez un sujet","e");return;}
+    const n=$("sN")?.value||6,lvl=$("sLvl")?.value||"Lycée",kp=$("sKP")?.value||"",th=document.querySelector(".tbtn.active")?.dataset.th||"dark",title=$("sT")?.value||subj;
+    showLoading("Génération du diaporama…");
+    try{const slides=await this.callGroq('Tu es un enseignant expert. Génère UNIQUEMENT un tableau JSON valide de diapositives pédagogiques en français. Format strict:[{"title":"...","badge":"...","content":"HTML simple avec p,ul,li,strong","emoji":"..."}] — Rien d\'autre que le JSON brut.',`Sujet:"${subj}"|Niveau:${lvl}|${n} slides${kp?"\nPoints clés:\n"+kp:""}`,true);
+      _slides=slides;_slideIdx=0;_slideTheme=th;
+      this.currentData={type:"slides",title,subject:subj,level:lvl,theme:th,slides};
+      showCurrentSlide("_sst");
+      ["sPr","sNx","sImg","sFul","sSv"].forEach(id=>{const e=$(id);if(e)e.disabled=false;});
+      toast("✅ "+slides.length+" slides générées !","s");
+    }catch(e){toast(e.message,"e");}finally{hideLoading();}
+  },
+  async genEx(){
+    const subj=$("exSubj")?.value.trim();if(!subj){toast("Entrez un sujet","e");return;}
+    const n=$("exN")?.value||8,lvl=$("exLvl")?.value,title=$("exT")?.value||"Exercice";
+    const types=[];
+    if($("exGaps")?.checked)types.push("texte à trous (_______ pour les trous)");
+    if($("exQcm")?.checked)types.push("QCM avec 4 choix A/B/C/D");
+    if($("exVf")?.checked)types.push("Vrai/Faux");
+    if($("exOpen")?.checked)types.push("questions ouvertes");
+    if(!types.length){toast("Choisissez un type de question","e");return;}
+    showLoading("Génération de l'exercice…");
+    try{const result=await this.callGroq('Génère UNIQUEMENT un JSON valide en français:{"title":"...","questions":[{"type":"gaps|qcm|vf|open","text":"...","choices":["A)...","B)...","C)...","D)..."],"answer":"...","points":1}]} — Rien d\'autre que le JSON.',`Sujet:"${subj}"|Niveau:${lvl}|${n} questions|Types:${types.join(",")}`,true);
+      result.title=title;this.currentData={type:"exercise",title,subject:subj,level:lvl,...result};
+      $("exPr").innerHTML=renderExHTML(result);$("exSv").disabled=false;toast("✅ Exercice généré !","s");
+    }catch(e){toast(e.message,"e");}finally{hideLoading();}
+  },
+  async cwGenWords(){
+    const th=$("cwTh")?.value.trim();if(!th){toast("Entrez un thème","e");return;}
+    showLoading("Génération des mots…");
+    try{const data=await this.callGroq('Génère UNIQUEMENT un JSON en français:{"words":[{"word":"MOT","clue":"Définition courte"}]} — 10 à 12 mots en MAJUSCULES sans accents, entre 4 et 12 lettres. Rien d\'autre.',`Thème:"${th}"`,true);
+      $("cwW").value=data.words.map(w=>`${w.word} : ${w.clue}`).join("\n");toast("✅ Mots générés !","s");
+    }catch(e){toast(e.message,"e");}finally{hideLoading();}
+  },
+  async genCw(){
+    const raw=$("cwW")?.value.trim();if(!raw){toast("Entrez des mots","e");return;}
+    const size=+($("cwSz")?.value||"13"),title=$("cwT")?.value||"Mots croisés";
+    const words=raw.split("\n").map(l=>{const[w,...d]=l.split(":");return{word:w.trim().toUpperCase().replace(/[^A-Z]/g,""),clue:d.join(":").trim()};}).filter(w=>w.word.length>=3&&w.word.length<=size-2);
+    if(words.length<3){toast("Ajoutez au moins 3 mots valides","e");return;}
+    showLoading("Construction de la grille…");
+    try{const grid=buildCrossword(words,size);this.currentData={type:"crossword",title,words,grid,size};renderCW(grid,words,size,"cwPr");$("cwSv").disabled=false;toast("✅ Grille générée !","s");}
+    catch(e){toast("Erreur grille: "+e.message,"e");}finally{hideLoading();}
+  },
+  async wsGenWords(){
+    const th=$("wsTh")?.value.trim();if(!th){toast("Entrez un thème","e");return;}
+    showLoading("Génération des mots…");
+    try{const data=await this.callGroq('Génère UNIQUEMENT un JSON:{"words":["MOT1","MOT2",...]} — 10 à 15 mots en MAJUSCULES sans accents, entre 4 et 12 lettres. Rien d\'autre.',`Thème:"${th}"`,true);
+      $("wsW").value=data.words.join("\n");toast("✅ Mots générés !","s");
+    }catch(e){toast(e.message,"e");}finally{hideLoading();}
+  },
+  async genWs(){
+    const raw=$("wsW")?.value.trim();if(!raw){toast("Entrez des mots","e");return;}
+    const size=+($("wsSz")?.value||"15"),title=$("wsT")?.value||"Mots mêlés";
+    const words=raw.split("\n").map(w=>w.trim().toUpperCase().replace(/[^A-Z]/g,"")).filter(w=>w.length>=3&&w.length<size);
+    showLoading("Construction de la grille…");
+    try{const result=buildWS(words,size);this.currentData={type:"wordsearch",title,words,grid:result.grid,placements:result.placements,size};renderWS(result,"wsPr");$("wsSv").disabled=false;toast("✅ Grille générée !","s");}
+    catch(e){toast("Erreur: "+e.message,"e");}finally{hideLoading();}
+  },
+  async mtGenPairs(){
+    const subj=$("mtSubj")?.value.trim();if(!subj){toast("Entrez un sujet","e");return;}
+    showLoading("Génération des paires…");
+    try{const data=await this.callGroq('Génère UNIQUEMENT un JSON:{"pairs":[{"left":"...","right":"..."}]} — 8 à 10 paires logiques en français. Rien d\'autre.',`Sujet:"${subj}"`,true);
+      $("mtP").value=data.pairs.map(p=>`${p.left} → ${p.right}`).join("\n");toast("✅ Paires générées !","s");
+    }catch(e){toast(e.message,"e");}finally{hideLoading();}
+  },
+  genMt(){
+    const raw=$("mtP")?.value.trim();if(!raw){toast("Entrez des paires","e");return;}
+    const title=$("mtT")?.value||"Relier";
+    const pairs=raw.split("\n").map(l=>{const p=l.split("→");return p.length===2?{left:p[0].trim(),right:p[1].trim()}:null;}).filter(Boolean);
+    if(pairs.length<2){toast("Format attendu : Gauche → Droite","e");return;}
+    this.currentData={type:"matching",title,pairs};renderMT(pairs,"mtPr");$("mtSv").disabled=false;toast("✅ Exercice créé !","s");
+  },
+  async genEv(){
+    const subj=$("evSubj")?.value.trim();if(!subj){toast("Entrez un sujet","e");return;}
+    const n=$("evN")?.value||10,lvl=$("evLvl")?.value,dur=$("evDur")?.value,title=$("evT")?.value||"Évaluation";
+    const types=[];if($("evQcm")?.checked)types.push("QCM");if($("evVf")?.checked)types.push("Vrai/Faux");if($("evOpen")?.checked)types.push("questions ouvertes");if($("evCalc")?.checked)types.push("calculs");
+    showLoading("Génération de l'évaluation…");
+    try{const result=await this.callGroq('Génère UNIQUEMENT un JSON en français:{"title":"...","questions":[{"type":"qcm|vf|open|calc","text":"...","choices":["A)...","B)...","C)...","D)..."],"answer":"réponse complète","points":1}]} — Rien d\'autre.',`Sujet:"${subj}"|Niveau:${lvl}|${n} questions|Types:${types.join(",")}|Durée:${dur}`,true);
+      result.title=title;this.currentData={type:"evaluation",title,subject:subj,level:lvl,duration:dur,...result};
+      $("evPr").innerHTML=renderExHTML(result);$("evSv").disabled=false;toast("✅ Évaluation générée !","s");
+    }catch(e){toast(e.message,"e");}finally{hideLoading();}
+  },
+};
+
+// ════════════════════════════════════════════════════════
+// CHAT IA
+// ════════════════════════════════════════════════════════
+const chatHist=[];
+$("cfab").addEventListener("click",()=>$("cpanel").classList.toggle("open"));
+$("cclose").addEventListener("click",()=>$("cpanel").classList.remove("open"));
+$("cinp").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}});
+$("cinp").addEventListener("input",function(){this.style.height="auto";this.style.height=Math.min(this.scrollHeight,120)+"px";});
+$("csend").addEventListener("click",sendChat);
+function chatMsg(role,text){const msgs=$("cmsgs"),d=document.createElement("div");d.className="cmsg "+(role==="user"?"u":"a");d.innerHTML=`<div class="cbub">${text.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/\n/g,"<br>")}</div>`;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;}
+function chatTyping(){const msgs=$("cmsgs"),d=document.createElement("div");d.className="cmsg a";d.innerHTML=`<div class="cbub"><span class="typing"><span></span><span></span><span></span></span></div>`;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;}
+async function sendChat(){
+  const inp=$("cinp"),msg=inp.value.trim();if(!msg)return;
+  inp.value="";inp.style.height="auto";chatMsg("user",msg);chatHist.push({role:"user",content:msg});
+  const t=chatTyping();
+  try{
+    const cfg=EDUFLOW_CONFIG,key=cfg.GROQ_API_KEY;
+    if(!key||key.startsWith("YOUR"))throw new Error("Configurez votre clé Groq dans config.js");
+    const r=await fetch(cfg.GROQ_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+key},body:JSON.stringify({model:cfg.GROQ_MODEL,max_tokens:800,temperature:.75,messages:[{role:"system",content:"Tu es un assistant pédagogique expert pour enseignants francophones. Tu aides à créer des activités, évaluations, conseils de classe, différenciation. Réponses concises et pratiques en français."},...chatHist.slice(-12)]})});
+    const d=await r.json();const reply=d.choices?.[0]?.message?.content||"Désolé, réessayez.";
+    chatHist.push({role:"assistant",content:reply});t.remove();chatMsg("assistant",reply);
+  }catch(e){t.remove();chatMsg("assistant","⚙️ "+e.message);}
+}
+
+// ════════════════════════════════════════════════════════
+// MODAL CLOSE BINDINGS
+// ════════════════════════════════════════════════════════
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>closeMo(b.dataset.close)));
+document.querySelectorAll(".mo").forEach(o=>o.addEventListener("click",e=>{if(e.target===o)closeMo(o.id);}));
+
+// ════════════════════════════════════════════════════════
+// BOOT — restore session au chargement
+// ════════════════════════════════════════════════════════
+(async()=>{
+  const u = await restoreSession();
+  if(u){ CU=u; u.role==="teacher"?showTeacher(u):showStudent(u); }
+})();
+</script>
 </body>
 </html>

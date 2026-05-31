@@ -1,18 +1,16 @@
-// ════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  EDUFLOW — config.js
-//  ✏️  Modifiez uniquement ce fichier pour changer vos clés API
-// ════════════════════════════════════════════════════════════════
+//  ✏️  Changez les clés ici sans toucher au reste
+// ═══════════════════════════════════════════════════════
 
 const EDUFLOW_CONFIG = {
 
-  // ── GROQ IA ────────────────────────────────────────────────────
-  // Obtenez/renouvelez votre clé sur : https://console.groq.com/keys
-  GROQ_API_KEY: "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",
-  GROQ_MODEL:   "llama-3.3-70b-versatile",
-  GROQ_ENDPOINT:"https://api.groq.com/openai/v1/chat/completions",
+  // ── GROQ IA — https://console.groq.com/keys ──────────
+  GROQ_API_KEY:  "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",
+  GROQ_MODEL:    "llama-3.3-70b-versatile",
+  GROQ_ENDPOINT: "https://api.groq.com/openai/v1/chat/completions",
 
-  // ── FIREBASE ───────────────────────────────────────────────────
-  // Modifiez ici si vous changez de projet Firebase
+  // ── FIREBASE — https://console.firebase.google.com ───
   FIREBASE: {
     apiKey:            "AIzaSyA6_UvjgUF0qwC2Oikkvj4pZEZJ-Zc1M5E",
     authDomain:        "eduflow-7031a.firebaseapp.com",
@@ -20,6 +18,6 @@ const EDUFLOW_CONFIG = {
     storageBucket:     "eduflow-7031a.firebasestorage.app",
     messagingSenderId: "1065555775545",
     appId:             "1:1065555775545:web:fc1cdd1f81051dc8f07de8",
-    measurementId:     "G-F3RLGHYZ3H"
+    measurementId:     "G-F3RLGHYZ3H",
   },
 };
