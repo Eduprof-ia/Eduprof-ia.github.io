@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informations Système</title>
+
+<style>
+body{
+    font-family:Segoe UI,sans-serif;
+    background:linear-gradient(135deg,#0f172a,#1e293b);
+    color:white;
+    margin:0;
+    padding:30px;
+}
+
+.container{
+    max-width:900px;
+    margin:auto;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.card{
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(15px);
+    border-radius:20px;
+    padding:20px;
+    margin-bottom:15px;
+    box-shadow:0 0 20px rgba(0,0,0,.3);
+}
+
+.label{
+    color:#93c5fd;
+    font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>🖥 Informations de votre appareil</h1>
+
+<div class="card"><span class="label">Système :</span> <span id="os"></span></div>
+<div class="card"><span class="label">Navigateur :</span> <span id="browser"></span></div>
+<div class="card"><span class="label">RAM :</span> <span id="ram"></span></div>
+<div class="card"><span class="label">CPU :</span> <span id="cpu"></span></div>
+<div class="card"><span class="label">Langue :</span> <span id="lang"></span></div>
+<div class="card"><span class="label">Résolution :</span> <span id="screen"></span></div>
+<div class="card"><span class="label">Connexion :</span> <span id="net"></span></div>
+<div class="card"><span class="label">IP Publique :</span> <span id="ip">Chargement...</span></div>
+</div>
+
+<script>
+document.getElementById("os").textContent =
+navigator.userAgent;
+
+document.getElementById("browser").textContent =
+navigator.appName + " " + navigator.appVersion;
+
+document.getElementById("ram").textContent =
+navigator.deviceMemory ?
+navigator.deviceMemory + " Go (estimé)" :
+"Non disponible";
+
+document.getElementById("cpu").textContent =
+navigator.hardwareConcurrency ?
+navigator.hardwareConcurrency + " cœurs logiques" :
+"Non disponible";
+
+document.getElementById("lang").textContent =
+navigator.language;
+
+document.getElementById("screen").textContent =
+screen.width + " x " + screen.height;
+
+if(navigator.connection){
+document.getElementById("net").textContent =
+navigator.connection.effectiveType +
+" (" + navigator.connection.downlink + " Mb/s)";
+}else{
+document.getElementById("net").textContent =
+"Information indisponible";
+}
+
+fetch("https://api.ipify.org?format=json")
+.then(r=>r.json())
+.then(data=>{
+document.getElementById("ip").textContent=data.ip;
+});
+</script>
+
+</body>
+</html>
